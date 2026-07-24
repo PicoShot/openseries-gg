@@ -1,0 +1,1 @@
+namespace OpenSeriesGG.Devices.Mice;
