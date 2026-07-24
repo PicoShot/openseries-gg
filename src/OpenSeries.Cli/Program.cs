@@ -1,0 +1,42 @@
+using OpenSeries.Cli;
+using Spectre.Console.Cli;
+
+var app = new CommandApp();
+app.Configure(configuration =>
+{
+    configuration.SetApplicationName("openseries");
+    configuration.SetApplicationVersion(typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0");
+    configuration.AddCommand<StatusCommand>("status");
+    configuration.AddCommand<InteractiveCommand>("interactive");
+    configuration.AddBranch("devices", devices => devices.AddCommand<DevicesListCommand>("list"));
+    configuration.AddBranch("headset", headset =>
+    {
+        headset.AddCommand<BatteryCommand>("battery");
+        headset.AddCommand<ChatMixCommand>("chatmix");
+        headset.AddCommand<SidetoneCommand>("sidetone");
+        headset.AddCommand<InactiveTimeCommand>("inactive-time");
+        headset.AddBranch("equalizer", equalizer =>
+        {
+            equalizer.AddCommand<EqualizerPresetCommand>("preset");
+            equalizer.AddCommand<EqualizerSetCommand>("set");
+        });
+    });
+});
+
+if (args.Length == 0)
+{
+    int status = Reporters.Status(null, false);
+    Console.WriteLine();
+    app.Run(["--help"]);
+    return status;
+}
+
+try
+{
+    return app.Run(args);
+}
+catch (Exception exception)
+{
+    CliSupport.Error(null, exception);
+    return 1;
+}

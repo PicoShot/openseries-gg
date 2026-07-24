@@ -1,0 +1,22 @@
+namespace OpenSeries.Devices;
+
+public interface ISteelSeriesDevice
+{
+    string Id { get; }
+    string Name { get; }
+    int ProductId { get; }
+    string? SerialNumber { get; }
+    Features SupportedFeatures { get; }
+}
+
+[Flags]
+public enum Features
+{
+    None = 0,
+    Sidetone = 1 << 0,
+    BatteryStatus = 1 << 1,
+    Chatmix = 1 << 2,
+    InactiveTime = 1 << 3,
+    Equalizer = 1 << 4,
+    EqualizerPreset = 1 << 5
+}
