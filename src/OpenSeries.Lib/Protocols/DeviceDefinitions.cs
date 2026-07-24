@@ -1,4 +1,5 @@
 using OpenSeries.Devices.Headsets;
+using OpenSeries.Devices.Mice;
 
 namespace OpenSeries.Protocols;
 
@@ -9,6 +10,7 @@ internal static class DeviceDefinitions
         new Arctis7PlusDefinition(),
         new ArctisNova5Definition(),
         new ArctisNova7Definition(),
-        new ArctisNova7PDefinition()
+        new ArctisNova7PDefinition(),
+        new Aerox5Definition()
     ];
 }

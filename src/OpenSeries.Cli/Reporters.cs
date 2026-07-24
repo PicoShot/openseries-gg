@@ -78,6 +78,16 @@ internal static class Reporters
                     catch (Exception exception) { errors.Add(exception.Message); failures++; if (!json) CliSupport.Error(device, exception); }
                 }
             }
+            else if (device is IMouseDevice mouse &&
+                     device.SupportedFeatures.HasFlag(DeviceFeatures.BatteryStatus))
+            {
+                try
+                {
+                    BatteryInfo value = mouse.GetBattery();
+                    battery = new(device.Id, device.Name, value.LevelPercentage, value.Status.ToString());
+                }
+                catch (Exception exception) { errors.Add(exception.Message); failures++; if (!json) CliSupport.Error(device, exception); }
+            }
             statuses.Add(new(
                 device.Id, device.Name, $"0x{device.ProductId:x4}", device.SerialNumber,
                 CapabilityArray(device), battery, chatMix, errors.Count == 0 ? null : string.Join("; ", errors)));
@@ -128,6 +138,10 @@ internal static class Reporters
             values.Add("InactiveTimeRange:0-90");
         if (device is IHeadsetDevice headset3 && device.SupportedFeatures.HasFlag(DeviceFeatures.Equalizer))
             values.Add($"Equalizer:{headset3.EqualizerInfo.BandCount} bands,{headset3.EqualizerInfo.Minimum}-{headset3.EqualizerInfo.Maximum} dB,step {headset3.EqualizerInfo.Step}");
+        if (device is IMouseDevice mouse && device.SupportedFeatures.HasFlag(DeviceFeatures.MouseSensitivity))
+            values.Add($"SensitivityRange:{mouse.SensitivityInfo.Minimum}-{mouse.SensitivityInfo.Maximum},step {mouse.SensitivityInfo.Step},max {mouse.SensitivityInfo.MaximumPresetCount} presets");
+        if (device is IMouseDevice mouse2 && device.SupportedFeatures.HasFlag(DeviceFeatures.PollingRate))
+            values.Add($"PollingRates:{string.Join(",", mouse2.SupportedPollingRates)} Hz");
         return values.ToArray();
     }
 }

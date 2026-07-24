@@ -79,6 +79,122 @@ internal sealed class ChatMixCommand : Command<DeviceJsonSettings>
     }
 }
 
+[Description("Read wireless mouse battery status.")]
+internal sealed class MouseBatteryCommand : Command<DeviceJsonSettings>
+{
+    protected override int Execute(CommandContext context, DeviceJsonSettings settings, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<IMouseDevice> devices = CliSupport.SelectMice(
+            settings.Device, DeviceFeatures.BatteryStatus, settings.Json, out int exitCode);
+        var results = new List<BatteryJson>();
+        foreach (IMouseDevice device in devices)
+        {
+            try
+            {
+                BatteryInfo battery = device.GetBattery();
+                results.Add(new(device.Id, device.Name, battery.LevelPercentage, battery.Status.ToString()));
+                if (!settings.Json)
+                    AnsiConsole.MarkupLine(
+                        $"{Markup.Escape(device.Id)}: {CliSupport.BatteryDisplay(battery.LevelPercentage, battery.Status.ToString())}");
+            }
+            catch (Exception exception)
+            {
+                exitCode = 1;
+                results.Add(new(device.Id, device.Name, null, null, exception.Message));
+                if (!settings.Json) CliSupport.Error(device, exception);
+            }
+        }
+        if (settings.Json) CliSupport.Json(results);
+        return exitCode;
+    }
+}
+
+[Description("Set one to five comma-separated mouse DPI presets (100-18000).")]
+internal sealed class MouseSensitivityCommand : Command<MouseSensitivitySettings>
+{
+    protected override int Execute(CommandContext context, MouseSensitivitySettings settings, CancellationToken cancellationToken)
+    {
+        string[] parts = settings.DpiPresets.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length is < 1 or > 5 ||
+            parts.Any(part => !ushort.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out _)))
+        {
+            AnsiConsole.MarkupLine("[red]Sensitivity requires one to five comma-separated DPI values.[/]");
+            return 1;
+        }
+
+        ushort[] presets = parts.Select(part => ushort.Parse(part, CultureInfo.InvariantCulture)).ToArray();
+        if (presets.Any(dpi => dpi is < 100 or > 18_000 || dpi % 100 != 0))
+        {
+            AnsiConsole.MarkupLine("[red]Each DPI preset must be from 100 to 18000 in steps of 100.[/]");
+            return 1;
+        }
+
+        return MouseSetters.Apply(settings.Device, DeviceFeatures.MouseSensitivity,
+            mouse => mouse.SetSensitivity(presets), $"DPI presets set to {string.Join(", ", presets)}.");
+    }
+}
+
+[Description("Set mouse polling rate (125, 250, 500, or 1000 Hz).")]
+internal sealed class MousePollingRateCommand : Command<MousePollingRateSettings>
+{
+    protected override int Execute(CommandContext context, MousePollingRateSettings settings, CancellationToken cancellationToken)
+    {
+        if (settings.PollingRate is not (125 or 250 or 500 or 1000))
+        {
+            AnsiConsole.MarkupLine("[red]Polling rate must be 125, 250, 500, or 1000 Hz.[/]");
+            return 1;
+        }
+
+        return MouseSetters.Apply(settings.Device, DeviceFeatures.PollingRate,
+            mouse => mouse.SetPollingRate((ushort)settings.PollingRate),
+            $"Polling rate set to {settings.PollingRate} Hz.");
+    }
+}
+
+[Description("Set an Aerox 5 lighting zone (top, middle, or bottom) to an RRGGBB color.")]
+internal sealed class MouseColorCommand : Command<MouseColorSettings>
+{
+    protected override int Execute(CommandContext context, MouseColorSettings settings, CancellationToken cancellationToken)
+    {
+        if (!Enum.TryParse(settings.Zone, true, out MouseZone zone))
+        {
+            AnsiConsole.MarkupLine("[red]Zone must be top, middle, or bottom.[/]");
+            return 1;
+        }
+
+        string color = settings.Color.TrimStart('#');
+        if (color.Length != 6 ||
+            !byte.TryParse(color[..2], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte red) ||
+            !byte.TryParse(color[2..4], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte green) ||
+            !byte.TryParse(color[4..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte blue))
+        {
+            AnsiConsole.MarkupLine("[red]Color must be six hexadecimal digits, for example ff8000.[/]");
+            return 1;
+        }
+
+        return MouseSetters.Apply(settings.Device, DeviceFeatures.Illumination,
+            mouse => mouse.SetIllumination(zone, new RgbColor(red, green, blue)),
+            $"{zone} lighting set to #{color.ToLowerInvariant()}.");
+    }
+}
+
+[Description("Set wireless mouse sleep timer in minutes (0-20).")]
+internal sealed class MouseSleepTimerCommand : Command<MouseSleepTimerSettings>
+{
+    protected override int Execute(CommandContext context, MouseSleepTimerSettings settings, CancellationToken cancellationToken)
+    {
+        if (settings.Minutes is < 0 or > 20)
+        {
+            AnsiConsole.MarkupLine("[red]Sleep timer must be between 0 and 20 minutes.[/]");
+            return 1;
+        }
+
+        return MouseSetters.Apply(settings.Device, DeviceFeatures.SleepTimer,
+            mouse => mouse.SetSleepTimer((byte)settings.Minutes),
+            $"Sleep timer set to {settings.Minutes} minute(s).");
+    }
+}
+
 [Description("Set headset sidetone (0-128).")]
 internal sealed class SidetoneCommand : Command<SidetoneSettings>
 {
@@ -168,6 +284,32 @@ internal static class Setters
     {
         IReadOnlyList<IHeadsetDevice> devices = CliSupport.SelectHeadsets(selector, feature, false, out int exitCode);
         foreach (IHeadsetDevice device in devices)
+        {
+            try
+            {
+                operation(device);
+                AnsiConsole.MarkupLine($"{Markup.Escape(device.Id)}: [green]{Markup.Escape(success)}[/]");
+            }
+            catch (Exception exception)
+            {
+                exitCode = 1;
+                CliSupport.Error(device, exception);
+            }
+        }
+        return exitCode;
+    }
+}
+
+internal static class MouseSetters
+{
+    internal static int Apply(
+        string? selector,
+        DeviceFeatures feature,
+        Action<IMouseDevice> operation,
+        string success)
+    {
+        IReadOnlyList<IMouseDevice> devices = CliSupport.SelectMice(selector, feature, false, out int exitCode);
+        foreach (IMouseDevice device in devices)
         {
             try
             {

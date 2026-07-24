@@ -21,6 +21,14 @@ app.Configure(configuration =>
             equalizer.AddCommand<EqualizerSetCommand>("set");
         });
     });
+    configuration.AddBranch("mouse", mouse =>
+    {
+        mouse.AddCommand<MouseBatteryCommand>("battery");
+        mouse.AddCommand<MouseSensitivityCommand>("sensitivity");
+        mouse.AddCommand<MousePollingRateCommand>("polling-rate");
+        mouse.AddCommand<MouseColorCommand>("color");
+        mouse.AddCommand<MouseSleepTimerCommand>("sleep-timer");
+    });
 });
 
 if (args.Length == 0)

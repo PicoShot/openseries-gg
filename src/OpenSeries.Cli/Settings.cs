@@ -45,3 +45,30 @@ internal sealed class EqualizerSettings : DeviceSettings
     [CommandArgument(0, "<BANDS>")]
     public string Bands { get; init; } = "";
 }
+
+internal sealed class MouseSensitivitySettings : DeviceSettings
+{
+    [CommandArgument(0, "<DPI_PRESETS>")]
+    public string DpiPresets { get; init; } = "";
+}
+
+internal sealed class MousePollingRateSettings : DeviceSettings
+{
+    [CommandArgument(0, "<HZ>")]
+    public int PollingRate { get; init; }
+}
+
+internal sealed class MouseColorSettings : DeviceSettings
+{
+    [CommandArgument(0, "<ZONE>")]
+    public string Zone { get; init; } = "";
+
+    [CommandArgument(1, "<RRGGBB>")]
+    public string Color { get; init; } = "";
+}
+
+internal sealed class MouseSleepTimerSettings : DeviceSettings
+{
+    [CommandArgument(0, "<MINUTES>")]
+    public int Minutes { get; init; }
+}

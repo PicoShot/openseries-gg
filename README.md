@@ -7,8 +7,8 @@ their settings, so I decided to build one.
 
 The goal is to create a friendly, open-source, cross-platform alternative for
 controlling SteelSeries devices without needing SteelSeries GG. The project
-currently focuses on wireless Arctis headsets, with readable terminal output
-for people and stable JSON output for scripts.
+currently supports selected Arctis headsets and Aerox mice, with readable
+terminal output for people and stable JSON output for scripts.
 
 > OpenSeries is an independent project and is not affiliated with or endorsed
 > by SteelSeries.
@@ -19,7 +19,7 @@ for people and stable JSON output for scripts.
 
 ## Supported devices
 
-### Headsets:
+### Headsets
 
 | Device                      | Battery | ChatMix | Sidetone | Inactive time | Equalizer | EQ presets |
 | --------------------------- | ------- | :-----: | :------: | :-----------: | :-------: | :--------: |
@@ -27,10 +27,13 @@ for people and stable JSON output for scripts.
 | Arctis Nova 5 / 5X          | Yes     |   Yes   |   Yes    |      Yes      |    Yes    |    Yes     |
 | Arctis Nova 7 / 7X variants | Yes     |   Yes   |   Yes    |      Yes      |    Yes    |    Yes     |
 | Arctis Nova 7P / 7P v2      | Yes     |   No    |    No    |      Yes      |    Yes    |    Yes     |
----
-### Mouse:
-- TODO
---- 
+### Mice
+
+| Device                                      | Battery | DPI presets | Polling rate | RGB zones | Sleep timer |
+| ------------------------------------------- | :-----: | :---------: | :----------: | :-------: | :---------: |
+| Aerox 5                                     |   N/A   |     Yes     |     Yes      |    Yes    |     N/A     |
+| Aerox 5 Wireless variants (wired / 2.4 GHz) |   Yes   |     Yes     |     Yes      |    Yes    |     Yes     |
+
 I don't have access to all SteelSeries devices to reverse engineer them. If your device isn't supported yet, contributions are very welcome. Feel free to open a PR.
 
 ## Requirements
@@ -60,6 +63,25 @@ You can also run it directly through the .NET SDK:
 
 ```bash
 dotnet run --project src/OpenSeries.Cli -- devices list
+```
+
+usage examples:
+
+```bash
+
+# headset example
+openseries headset battery
+openseries headset chatmix
+openseries headset sidetone 50
+openseries headset equalizer preset 1 # 0=Flat, 1=Bass Boost, 2=Smiley, 3=Focus
+openseries headset inactive-time 5 # in minute
+
+# mouse example
+openseries mouse battery
+openseries mouse sensitivity 400,800,1600
+openseries mouse polling-rate 1000
+openseries mouse color top ff8000 # bottom middle top 
+openseries mouse sleep-timer 5
 ```
 
 ## Library usage

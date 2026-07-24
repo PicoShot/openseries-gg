@@ -69,6 +69,44 @@ internal static class CliSupport
         return headsets;
     }
 
+    internal static IReadOnlyList<IMouseDevice> SelectMice(
+        string? id,
+        DeviceFeatures required,
+        bool quiet,
+        out int exitCode)
+    {
+        IReadOnlyList<ISteelSeriesDevice> all = Discover(quiet);
+        IEnumerable<ISteelSeriesDevice> selected = all;
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            ISteelSeriesDevice[] matches = all
+                .Where(device => string.Equals(device.Id, id, StringComparison.Ordinal))
+                .ToArray();
+            if (matches.Length != 1)
+            {
+                if (!quiet)
+                    AnsiConsole.MarkupLine(matches.Length == 0
+                        ? $"[red]No device has ID[/] {Markup.Escape(id)}."
+                        : $"[red]Device ID is ambiguous:[/] {Markup.Escape(id)}.");
+                exitCode = 1;
+                return [];
+            }
+            selected = matches;
+        }
+
+        IMouseDevice[] mice = selected.OfType<IMouseDevice>()
+            .Where(mouse => mouse.SupportedFeatures.HasFlag(required))
+            .ToArray();
+        if (mice.Length == 0)
+        {
+            if (!quiet) AnsiConsole.MarkupLine("[red]No compatible connected mouse was found.[/]");
+            exitCode = 1;
+            return [];
+        }
+        exitCode = 0;
+        return mice;
+    }
+
     internal static void Json(object value) =>
         Console.Out.WriteLine(JsonSerializer.Serialize(value, JsonOptions));
 
