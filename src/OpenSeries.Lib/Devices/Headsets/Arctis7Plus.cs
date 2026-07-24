@@ -28,7 +28,6 @@ internal sealed class Arctis7PlusDefinition : IDeviceDefinition
     public ISteelSeriesDevice Connect(HidDevice endpoint, DeviceIdentity identity) => new Arctis7Plus(endpoint, identity);
 }
 
-
 internal sealed class Arctis7Plus(HidDevice endpoint, DeviceIdentity identity) : IHeadsetDevice
 {
     private const int IoTimeoutMilliseconds = 2_000;
@@ -45,12 +44,20 @@ internal sealed class Arctis7Plus(HidDevice endpoint, DeviceIdentity identity) :
     public int ProductId => identity.ProductId;
     public string? SerialNumber => identity.SerialNumber;
     public Features SupportedFeatures =>
-        Features.Sidetone | Features.BatteryStatus |
-        Features.Chatmix | Features.InactiveTime |
-        Features.Equalizer | Features.EqualizerPreset;
+        Features.Sidetone |
+        Features.BatteryStatus |
+        Features.Chatmix |
+        Features.InactiveTime |
+        Features.Equalizer |
+        Features.EqualizerPreset;
 
-    public EqualizerInfo EqualizerInfo { get; } =
-        new(EqualizerBands, EqualizerMinimum, EqualizerMaximum, EqualizerStep);
+    public EqualizerInfo EqualizerInfo { get; } = new
+    (
+        EqualizerBands,
+        EqualizerMinimum,
+        EqualizerMaximum,
+        EqualizerStep
+    );
 
     public IReadOnlyList<EqualizerPreset> EqualizerPresets { get; } =
     [
@@ -69,9 +76,7 @@ internal sealed class Arctis7Plus(HidDevice endpoint, DeviceIdentity identity) :
         }
 
         ushort level = (ushort)Math.Clamp(data[2] * 25, 0, 100);
-        BatteryStatus status = data[3] == 0x01
-            ? BatteryStatus.Charging
-            : level == 100 ? BatteryStatus.Charged : BatteryStatus.Discharging;
+        BatteryStatus status = data[3] == 0x01 ? BatteryStatus.Charging : level == 100 ? BatteryStatus.Charged : BatteryStatus.Discharging;
         return new BatteryInfo(level, status, data);
     }
 
@@ -134,12 +139,14 @@ internal sealed class Arctis7Plus(HidDevice endpoint, DeviceIdentity identity) :
     private byte[] ReadDeviceStatus()
     {
         using HidStream stream = OpenStream();
-        WriteReport(stream, [0, 0xb0]);
+        stream.Write([0x00, 0xb0]);
         var response = new byte[Math.Max(StatusBufferSize, endpoint.GetMaxInputReportLength())];
         int bytesRead = stream.Read(response);
         if (bytesRead < 6)
             throw new InvalidDataException($"Device returned a short status response ({bytesRead} bytes).");
-        return response[..bytesRead];
+
+        int statusOffset = bytesRead >= 7 && response[0] == 0x00 && response[1] == 0xb0 ? 1 : 0;
+        return response[statusOffset..bytesRead];
     }
 
     private void SendCommand(ReadOnlySpan<byte> command)
@@ -166,6 +173,13 @@ internal sealed class Arctis7Plus(HidDevice endpoint, DeviceIdentity identity) :
         stream.Write(report);
     }
 
-    private static int Map(int value, int sourceMin, int sourceMax, int targetMin, int targetMax) =>
-    (value - sourceMin) * (targetMax - targetMin) / (sourceMax - sourceMin) + targetMin;
+    private static int Map(
+        int value,
+        int sourceMin,
+        int sourceMax,
+        int targetMin,
+        int targetMax) =>
+        (value - sourceMin) *
+        (targetMax - targetMin) /
+        (sourceMax - sourceMin) + targetMin;
 }

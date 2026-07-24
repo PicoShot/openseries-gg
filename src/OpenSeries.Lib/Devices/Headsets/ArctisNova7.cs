@@ -69,12 +69,13 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
         Features.Equalizer |
         Features.EqualizerPreset;
 
-    public EqualizerInfo EqualizerInfo { get; } =
-        new(
-            EqualizerBands,
-            EqualizerMinimum,
-            EqualizerMaximum,
-            EqualizerStep);
+    public EqualizerInfo EqualizerInfo { get; } = new
+    (
+        EqualizerBands,
+        EqualizerMinimum,
+        EqualizerMaximum,
+        EqualizerStep
+    );
 
     public IReadOnlyList<EqualizerPreset> EqualizerPresets { get; } =
     [
@@ -92,16 +93,10 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
             return new BatteryInfo(0, BatteryStatus.Disconnected, data);
         }
 
-        int level = DiscreteBatteryProductIds.Contains(ProductId)
-            ? Map(data[2], 0, 4, 0, 100)
-            : data[2];
+        int level = DiscreteBatteryProductIds.Contains(ProductId) ? Map(data[2], 0, 4, 0, 100) : data[2];
         level = Math.Clamp(level, 0, 100);
 
-        BatteryStatus status = data[3] is 0x01 or 0x02
-            ? BatteryStatus.Charging
-            : level == 100
-                ? BatteryStatus.Charged
-                : BatteryStatus.Discharging;
+        BatteryStatus status = data[3] is 0x01 or 0x02 ? BatteryStatus.Charging : level == 100 ? BatteryStatus.Charged : BatteryStatus.Discharging;
 
         return new BatteryInfo((ushort)level, status, data);
     }
@@ -124,9 +119,7 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
     {
         if (level > 128)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(level),
-                "Sidetone must be between 0 and 128.");
+            throw new ArgumentOutOfRangeException(nameof(level), "Sidetone must be between 0 and 128.");
         }
 
         byte deviceLevel = level switch
@@ -143,9 +136,7 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
     {
         if (minutes > 90)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(minutes),
-                "Inactive time must be between 0 and 90 minutes.");
+            throw new ArgumentOutOfRangeException(nameof(minutes), "Inactive time must be between 0 and 90 minutes.");
         }
 
         SendCommand([0x00, 0xa3, (byte)minutes]);
@@ -155,9 +146,7 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
     {
         if (preset >= EqualizerPresets.Count)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(preset),
-                "Preset index must be between 0 and 3.");
+            throw new ArgumentOutOfRangeException(nameof(preset), "Preset index must be between 0 and 3.");
         }
 
         SetEqualizer(EqualizerPresets[preset].Bands);
@@ -168,9 +157,7 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
         ArgumentNullException.ThrowIfNull(bands);
         if (bands.Count != EqualizerBands)
         {
-            throw new ArgumentException(
-                $"Exactly {EqualizerBands} equalizer bands are required.",
-                nameof(bands));
+            throw new ArgumentException($"Exactly {EqualizerBands} equalizer bands are required.", nameof(bands));
         }
 
         var command = new byte[MessageSize];
@@ -181,20 +168,15 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
             float value = bands[index];
             if (value < EqualizerMinimum || value > EqualizerMaximum)
             {
-                throw new ArgumentOutOfRangeException(
-                    nameof(bands),
-                    $"Band {index + 1} must be between -10 and +10 dB.");
+                throw new ArgumentOutOfRangeException(nameof(bands), $"Band {index + 1} must be between -10 and +10 dB.");
             }
 
             float steps = value / EqualizerStep;
             if (MathF.Abs(steps - MathF.Round(steps)) > 0.0001f)
             {
-                throw new ArgumentException(
-                    $"Band {index + 1} must use 0.5 dB increments.",
-                    nameof(bands));
+                throw new ArgumentException($"Band {index + 1} must use 0.5 dB increments.", nameof(bands));
             }
 
-            // This follows the Nova protocol's baseline-plus-gain encoding.
             command[index + 2] = checked((byte)(EqualizerBaseline + value));
         }
 
@@ -205,18 +187,17 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
     private byte[] ReadDeviceStatus()
     {
         using HidStream stream = OpenStream();
-        WriteReport(stream, [0x00, 0xb0]);
+        stream.Write([0x00, 0xb0]);
 
-        var response = new byte[
-            Math.Max(StatusBufferSize, endpoint.GetMaxInputReportLength())];
+        var response = new byte[Math.Max(StatusBufferSize, endpoint.GetMaxInputReportLength())];
         int bytesRead = stream.Read(response);
         if (bytesRead < 6)
         {
-            throw new InvalidDataException(
-                $"Device returned a short status response ({bytesRead} bytes).");
+            throw new InvalidDataException($"Device returned a short status response ({bytesRead} bytes).");
         }
 
-        return response[..bytesRead];
+        int statusOffset = bytesRead >= 7 && response[0] == 0x00 && response[1] == 0xb0 ? 1 : 0;
+        return response[statusOffset..bytesRead];
     }
 
     private void SendCommand(ReadOnlySpan<byte> command)
@@ -240,8 +221,7 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
         int reportLength = endpoint.GetMaxOutputReportLength();
         if (reportLength < command.Length || reportLength < MessageSize)
         {
-            throw new InvalidDataException(
-                $"Output report length {reportLength} cannot carry this command.");
+            throw new InvalidDataException($"Output report length {reportLength} cannot carry this command.");
         }
 
         byte[] report = new byte[reportLength];
