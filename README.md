@@ -13,6 +13,10 @@ for people and stable JSON output for scripts.
 > OpenSeries is an independent project and is not affiliated with or endorsed
 > by SteelSeries.
 
+## Showcase
+
+![OpenSeries terminal showcase](assets/showcase.gif)
+
 ## Supported devices
 
 ### Headsets:
