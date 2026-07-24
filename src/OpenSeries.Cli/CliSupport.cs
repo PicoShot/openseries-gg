@@ -90,6 +90,14 @@ internal static class CliSupport
     internal static string Features(DeviceFeatures features) =>
         string.Join(", ", Enum.GetValues<DeviceFeatures>()
             .Where(feature => feature != DeviceFeatures.None && features.HasFlag(feature)));
+
+    internal static string BatteryDisplay(ushort levelPercentage, string chargingState)
+    {
+        int level = Math.Clamp((int)levelPercentage, 0, 100);
+        int filledCells = level / 10;
+        string bar = new string('=', filledCells) + new string(' ', 10 - filledCells);
+        return $"{Markup.Escape(chargingState)} [[{bar}]] {level} %";
+    }
 }
 
 internal sealed record DeviceJson(

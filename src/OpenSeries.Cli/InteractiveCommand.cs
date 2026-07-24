@@ -54,7 +54,8 @@ internal sealed class InteractiveCommand : Command<InteractiveSettings>
             operations["Battery status"] = () =>
             {
                 BatteryInfo battery = device.GetBattery();
-                AnsiConsole.MarkupLine($"[bold]{battery.LevelPercentage}%[/] ({battery.Status})");
+                AnsiConsole.MarkupLine(
+                    CliSupport.BatteryDisplay(battery.LevelPercentage, battery.Status.ToString()));
             };
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.Chatmix))
             operations["ChatMix status"] = () =>

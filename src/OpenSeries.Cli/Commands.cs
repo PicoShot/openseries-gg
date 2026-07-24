@@ -35,7 +35,8 @@ internal sealed class BatteryCommand : Command<DeviceJsonSettings>
                 BatteryInfo battery = device.GetBattery();
                 results.Add(new(device.Id, device.Name, battery.LevelPercentage, battery.Status.ToString()));
                 if (!settings.Json)
-                    AnsiConsole.MarkupLine($"{Markup.Escape(device.Id)}: [bold]{battery.LevelPercentage}%[/] ({battery.Status})");
+                    AnsiConsole.MarkupLine(
+                        $"{Markup.Escape(device.Id)}: {CliSupport.BatteryDisplay(battery.LevelPercentage, battery.Status.ToString())}");
             }
             catch (Exception exception)
             {

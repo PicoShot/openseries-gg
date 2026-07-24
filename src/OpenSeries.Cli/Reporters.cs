@@ -97,8 +97,11 @@ internal static class Reporters
                 grid.AddRow("[bold]Model[/]", Markup.Escape(status.Model));
                 grid.AddRow("[bold]PID[/]", status.ProductId);
                 grid.AddRow("[bold]Serial[/]", Markup.Escape(status.SerialNumber ?? "Unavailable (path-derived ID)"));
-                grid.AddRow("[bold]Battery[/]", status.Battery is null ? "Capability unavailable" : $"{status.Battery.LevelPercentage}%");
-                grid.AddRow("[bold]Charging state[/]", status.Battery?.ChargingState ?? "Capability unavailable");
+                grid.AddRow("[bold]Battery[/]", status.Battery is null
+                    ? "Capability unavailable"
+                    : CliSupport.BatteryDisplay(
+                        status.Battery.LevelPercentage!.Value,
+                        status.Battery.ChargingState!));
                 grid.AddRow("[bold]ChatMix[/]", status.ChatMix is null ? "Capability unavailable" :
                     $"{status.ChatMix.Level}/128 (game {status.ChatMix.GameVolumePercentage}%, chat {status.ChatMix.ChatVolumePercentage}%)");
                 grid.AddRow("[bold]Capabilities[/]", Markup.Escape(string.Join(", ", status.Capabilities)));
