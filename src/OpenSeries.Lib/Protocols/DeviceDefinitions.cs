@@ -7,6 +7,7 @@ internal static class DeviceDefinitions
     internal static IReadOnlyList<IDeviceDefinition> All { get; } =
     [
         new Arctis7PlusDefinition(),
+        new ArctisNova5Definition(),
         new ArctisNova7Definition(),
         new ArctisNova7PDefinition()
     ];
