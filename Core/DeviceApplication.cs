@@ -1,3 +1,5 @@
+using OpenSeriesGG.Devices;
+
 namespace OpenSeriesGG.Core;
 
 public sealed class DeviceApplication(
@@ -16,7 +18,16 @@ public sealed class DeviceApplication(
 
                 try
                 {
-                    definition.QueryAndPrint(device, Console.Out);
+                    definition.Connect(device);
+
+                    Console.WriteLine($"Device: {definition.Name}");
+                    if (definition is IHeadsetDevice headset &&
+                        headset.SupportedFeatures.HasFlag(Features.BatteryStatus))
+                    {
+                        BatteryInfo battery = headset.GetBattery();
+                        Console.WriteLine($"Battery: {battery.LevelPercentage}%");
+                        Console.WriteLine($"Status: {battery.Status}");
+                    }
                 }
                 catch (TimeoutException)
                 {

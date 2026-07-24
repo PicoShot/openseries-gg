@@ -10,4 +10,6 @@ public interface ISteelSeriesDevice
     IReadOnlyCollection<int> ProductIds { get; }
     uint Usage { get; }
     int WindowsInterfaceNumber { get; }
+
+    void Connect(HidDevice device);
 }

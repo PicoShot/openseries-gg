@@ -4,13 +4,15 @@ using OpenSeriesGG.Core;
 namespace OpenSeriesGG.Devices;
 
 [Flags]
-public enum Features 
+public enum Features
 {
-    Sidetone,
-    BatteryStatus,
-    Chatmix,
-    InactiveTime,
-    Equalizer
+    None = 0,
+    Sidetone = 1 << 0,
+    BatteryStatus = 1 << 1,
+    Chatmix = 1 << 2,
+    InactiveTime = 1 << 3,
+    Equalizer = 1 << 4,
+    EqualizerPreset = 1 << 5
 }
 
 public enum BatteryStatus
@@ -25,12 +27,33 @@ public enum BatteryStatus
 public interface IHeadsetDevice : ISteelSeriesDevice
 {
     Features SupportedFeatures { get; }
-    void SetSideTone(sbyte sideTone); // 0-128
-    BatteryStatus GetBatteryStatus();
-    ushort GetBatteryLevel(); 
-    void SetInactiveTime(ushort inactiveTime); // (0-90 minutes, 0 disables)
-    ushort GetChatmix(); // Get chat-mix-dial level (0-128, <64 for game, >64 for chat)
+    EqualizerInfo EqualizerInfo { get; }
+    IReadOnlyList<EqualizerPreset> EqualizerPresets { get; }
 
-    void SetEqualizerBand(); // TODO: Implement equalizer params
-    void SetEqualizerPreset(); // TODO: Implement equalizer preset params
+    void SetSidetone(byte level); // 0-128
+    BatteryInfo GetBattery();
+    void SetInactiveTime(ushort minutes); // 0-90 minutes, 0 disables
+    ChatmixInfo GetChatmix();
+    void SetEqualizer(IReadOnlyList<float> bands);
+    void SetEqualizerPreset(byte preset);
 }
+
+public sealed record BatteryInfo(
+    ushort LevelPercentage,
+    BatteryStatus Status,
+    IReadOnlyList<byte> RawData);
+
+public sealed record ChatmixInfo(
+    ushort Level,
+    ushort GameVolumePercentage,
+    ushort ChatVolumePercentage);
+
+public sealed record EqualizerInfo(
+    int BandCount,
+    float Minimum,
+    float Maximum,
+    float Step);
+
+public sealed record EqualizerPreset(
+    string Name,
+    IReadOnlyList<float> Bands);
