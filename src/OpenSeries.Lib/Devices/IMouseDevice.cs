@@ -19,5 +19,7 @@ public enum MouseZone
 {
     Top,
     Middle,
-    Bottom
+    Bottom,
+    Logo,
+    Wheel
 }

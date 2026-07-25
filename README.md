@@ -29,10 +29,11 @@ terminal output for people and stable JSON output for scripts.
 | Arctis Nova 7P / 7P v2      | Yes     |   No    |    No    |      Yes      |    Yes    |    Yes     |
 ### Mice
 
-| Device                                      | Battery | DPI presets | Polling rate | RGB zones | Sleep timer |
-| ------------------------------------------- | :-----: | :---------: | :----------: | :-------: | :---------: |
-| Aerox 5                                     |   N/A   |     Yes     |     Yes      |    Yes    |     N/A     |
-| Aerox 5 Wireless variants (wired / 2.4 GHz) |   Yes   |     Yes     |     Yes      |    Yes    |     Yes     |
+| Device                    | Battery | DPI presets | Polling rate | RGB zones | Sleep timer |
+| ------------------------- | :-----: | :---------: | :----------: | :-------: | :---------: |
+| Aerox 5 Wired             |   N/A   |     Yes     |     Yes      |    Yes    |     N/A     |
+| Aerox 5 Wireless variants |   Yes   |     Yes     |     Yes      |    Yes    |     Yes     |
+| Sensei Ten variants       |   N/A   |     Yes     |     Yes      |    Yes    |     N/A     |
 
 I don't have access to all SteelSeries devices to reverse engineer them. If your device isn't supported yet, contributions are very welcome. Feel free to open a PR.
 

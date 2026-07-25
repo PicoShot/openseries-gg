@@ -109,7 +109,7 @@ internal sealed class MouseBatteryCommand : Command<DeviceJsonSettings>
     }
 }
 
-[Description("Set one to five comma-separated mouse DPI presets (100-18000).")]
+[Description("Set one to five comma-separated mouse DPI presets.")]
 internal sealed class MouseSensitivityCommand : Command<MouseSensitivitySettings>
 {
     protected override int Execute(CommandContext context, MouseSensitivitySettings settings, CancellationToken cancellationToken)
@@ -123,9 +123,9 @@ internal sealed class MouseSensitivityCommand : Command<MouseSensitivitySettings
         }
 
         ushort[] presets = parts.Select(part => ushort.Parse(part, CultureInfo.InvariantCulture)).ToArray();
-        if (presets.Any(dpi => dpi is < 100 or > 18_000 || dpi % 100 != 0))
+        if (presets.Any(dpi => dpi is < 50 or > 18_000 || dpi % 50 != 0))
         {
-            AnsiConsole.MarkupLine("[red]Each DPI preset must be from 100 to 18000 in steps of 100.[/]");
+            AnsiConsole.MarkupLine("[red]Each DPI preset must be from 50 to 18000 in steps of 50.[/]");
             return 1;
         }
 
@@ -151,14 +151,14 @@ internal sealed class MousePollingRateCommand : Command<MousePollingRateSettings
     }
 }
 
-[Description("Set an Aerox 5 lighting zone (top, middle, or bottom) to an RRGGBB color.")]
+[Description("Set a mouse lighting zone to an RRGGBB color.")]
 internal sealed class MouseColorCommand : Command<MouseColorSettings>
 {
     protected override int Execute(CommandContext context, MouseColorSettings settings, CancellationToken cancellationToken)
     {
         if (!Enum.TryParse(settings.Zone, true, out MouseZone zone))
         {
-            AnsiConsole.MarkupLine("[red]Zone must be top, middle, or bottom.[/]");
+            AnsiConsole.MarkupLine("[red]Zone must be top, middle, bottom, logo, or wheel.[/]");
             return 1;
         }
 
