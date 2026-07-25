@@ -25,8 +25,7 @@ internal sealed class Aerox3Definition : IDeviceDefinition
 
         try
         {
-            return endpoint.GetReportDescriptor().DeviceItems.Any(
-                item => item.Usages.ContainsValue(0xffc00001));
+            return endpoint.GetReportDescriptor().DeviceItems.Any(item => item.Usages.ContainsValue(0xffc00001));
         }
         catch
         {
@@ -34,8 +33,7 @@ internal sealed class Aerox3Definition : IDeviceDefinition
         }
     }
 
-    public ISteelSeriesDevice Connect(HidDevice endpoint, DeviceIdentity identity) =>
-        new Aerox3(endpoint, identity);
+    public ISteelSeriesDevice Connect(HidDevice endpoint, DeviceIdentity identity) => new Aerox3(endpoint, identity);
 }
 
 internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMouseDevice
@@ -66,6 +64,7 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMou
     private const int IoTimeoutMilliseconds = 2_000;
     private const int ReceiverResponseLength = 64;
     private const int CommandDelayMilliseconds = 50;
+    private readonly HidTransport transport = new(endpoint, IoTimeoutMilliseconds);
 
     private bool IsReceiver => ReceiverProductIds.Contains(ProductId);
     private bool IsWirelessModel => WirelessProductIds.Contains(ProductId);
@@ -90,7 +89,11 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMou
         : new(200, 8_500, 100, 5);
     public IReadOnlyList<ushort> SupportedPollingRates { get; } = [125, 250, 500, 1000];
     public IReadOnlyList<MouseZone> SupportedIlluminationZones { get; } =
-        [MouseZone.Top, MouseZone.Middle, MouseZone.Bottom];
+    [
+    MouseZone.Top,
+    MouseZone.Middle,
+    MouseZone.Bottom
+    ];
 
     public void SetSensitivity(IReadOnlyList<ushort> dpiPresets)
     {
@@ -123,8 +126,7 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMou
             250 => IsWirelessModel ? (byte)0x02 : (byte)0x03,
             500 => IsWirelessModel ? (byte)0x01 : (byte)0x02,
             1000 => IsWirelessModel ? (byte)0x00 : (byte)0x01,
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(pollingRate), "Polling rate must be 125, 250, 500, or 1000 Hz.")
+            _ => throw new ArgumentOutOfRangeException(nameof(pollingRate), "Polling rate must be 125, 250, 500, or 1000 Hz.")
         };
 
         SendAndSave([0x2b, encoded]);
@@ -135,8 +137,7 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMou
         ArgumentNullException.ThrowIfNull(color);
         if (zone is not (MouseZone.Top or MouseZone.Middle or MouseZone.Bottom))
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(zone), "Aerox 3 lighting zone must be top, middle, or bottom.");
+            throw new ArgumentOutOfRangeException(nameof(zone), "Aerox 3 lighting zone must be top, middle, or bottom.");
         }
 
         byte[] prefix = IsWirelessModel
@@ -196,9 +197,7 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMou
         }
 
         ushort level = (ushort)((batteryStep - 1) * 5);
-        BatteryStatus status = (raw & 0x80) != 0
-            ? BatteryStatus.Charging
-            : level == 100 ? BatteryStatus.Charged : BatteryStatus.Discharging;
+        BatteryStatus status = (raw & 0x80) != 0 ? BatteryStatus.Charging : level == 100 ? BatteryStatus.Charged : BatteryStatus.Discharging;
         return new BatteryInfo(level, status, response);
     }
 
@@ -211,40 +210,29 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMou
 
     private byte[] SendCommand(ReadOnlySpan<byte> command, bool readResponse)
     {
-        using HidStream stream = endpoint.Open();
-        stream.ReadTimeout = IoTimeoutMilliseconds;
-        stream.WriteTimeout = IoTimeoutMilliseconds;
-
-        int reportLength = endpoint.GetMaxOutputReportLength();
-        if (reportLength < command.Length + 1)
-        {
-            throw new InvalidDataException($"Output report length {reportLength} cannot carry this command.");
-        }
-
-        byte[] report = new byte[reportLength];
-        command.CopyTo(report.AsSpan(1));
+        byte[] framedCommand = command.ToArray();
         if (IsReceiver)
         {
-            report[1] |= 0x40;
+            framedCommand[0] |= 0x40;
         }
-        stream.Write(report);
 
         if (!readResponse)
         {
+            transport.WriteOutput(framedCommand, commandOffset: 1);
             return [];
         }
 
-        var response = new byte[Math.Max(ReceiverResponseLength, endpoint.GetMaxInputReportLength())];
-        int bytesRead = stream.Read(response);
-        return response[..bytesRead];
+        return transport.WriteOutputAndRead(
+            framedCommand,
+            ReceiverResponseLength,
+            commandOffset: 1);
     }
 
     private static byte EncodeAirSensitivity(ushort dpi, int index)
     {
         if (dpi is < 100 or > 18_000 || dpi % 100 != 0)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(dpi), $"DPI preset {index + 1} must be from 100 to 18000 in steps of 100.");
+            throw new ArgumentOutOfRangeException(nameof(dpi), $"DPI preset {index + 1} must be from 100 to 18000 in steps of 100.");
         }
         if (dpi == 100)
         {
@@ -267,8 +255,7 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMou
     {
         if (dpi is < 200 or > 8_500 || dpi % 100 != 0)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(dpi), $"DPI preset {index + 1} must be from 200 to 8500 in steps of 100.");
+            throw new ArgumentOutOfRangeException(nameof(dpi), $"DPI preset {index + 1} must be from 200 to 8500 in steps of 100.");
         }
 
         return CoreSensitivityValues[(dpi - 200) / 100];

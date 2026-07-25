@@ -44,6 +44,7 @@ internal sealed class ArctisNova7P(HidDevice endpoint, DeviceIdentity identity) 
     private const float EqualizerMaximum = 10;
     private const float EqualizerStep = 0.5f;
     private const byte EqualizerBaseline = 0x14;
+    private readonly HidTransport transport = new(endpoint, IoTimeoutMilliseconds);
 
     public string Id => identity.Id;
     public string Name => "SteelSeries Arctis Nova 7P";
@@ -83,18 +84,14 @@ internal sealed class ArctisNova7P(HidDevice endpoint, DeviceIdentity identity) 
         level = Math.Clamp(level, 0, 100);
         BatteryStatus status = data[3] is 0x01 or 0x02
             ? BatteryStatus.Charging
-            : level == 100
-                ? BatteryStatus.Charged
-                : BatteryStatus.Discharging;
+            : level == 100 ? BatteryStatus.Charged : BatteryStatus.Discharging;
 
         return new BatteryInfo((ushort)level, status, data);
     }
 
-    public ChatmixInfo GetChatmix() =>
-        throw new NotSupportedException($"{Name} does not support ChatMix.");
+    public ChatmixInfo GetChatmix() => throw new NotSupportedException($"{Name} does not support ChatMix.");
 
-    public void SetSidetone(byte level) =>
-        throw new NotSupportedException($"{Name} does not support sidetone control.");
+    public void SetSidetone(byte level) => throw new NotSupportedException($"{Name} does not support sidetone control.");
 
     public void SetInactiveTime(ushort minutes)
     {
@@ -150,7 +147,7 @@ internal sealed class ArctisNova7P(HidDevice endpoint, DeviceIdentity identity) 
 
     private byte[] ReadDeviceStatus()
     {
-        using HidStream stream = OpenStream();
+        using HidStream stream = transport.OpenStream();
         stream.Write([0x00, 0xb0]);
 
         var response = new byte[Math.Max(StatusBufferSize, endpoint.GetMaxInputReportLength())];
@@ -164,27 +161,7 @@ internal sealed class ArctisNova7P(HidDevice endpoint, DeviceIdentity identity) 
         return response[statusOffset..bytesRead];
     }
 
-    private void SendCommand(ReadOnlySpan<byte> command)
-    {
-        using HidStream stream = OpenStream();
-        int reportLength = endpoint.GetMaxOutputReportLength();
-        if (reportLength < command.Length || reportLength < MessageSize)
-        {
-            throw new InvalidDataException($"Output report length {reportLength} cannot carry this command.");
-        }
-
-        byte[] report = new byte[reportLength];
-        command.CopyTo(report);
-        stream.Write(report);
-    }
-
-    private HidStream OpenStream()
-    {
-        HidStream stream = endpoint.Open();
-        stream.ReadTimeout = IoTimeoutMilliseconds;
-        stream.WriteTimeout = IoTimeoutMilliseconds;
-        return stream;
-    }
+    private void SendCommand(ReadOnlySpan<byte> command) => transport.WriteOutput(command, minimumReportLength: MessageSize);
 
     private static int Map(
         int value,

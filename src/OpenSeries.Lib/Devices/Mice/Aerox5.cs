@@ -54,6 +54,7 @@ internal sealed class Aerox5(HidDevice endpoint, DeviceIdentity identity) : IMou
     private const int IoTimeoutMilliseconds = 2_000;
     private const int ReceiverResponseLength = 64;
     private const int CommandDelayMilliseconds = 50;
+    private readonly HidTransport transport = new(endpoint, IoTimeoutMilliseconds);
 
     private bool IsReceiver => ReceiverProductIds.Contains(ProductId);
     private bool IsWirelessModel => WirelessProductIds.Contains(ProductId);
@@ -202,32 +203,19 @@ internal sealed class Aerox5(HidDevice endpoint, DeviceIdentity identity) : IMou
 
     private byte[] SendCommand(ReadOnlySpan<byte> command, bool readResponse)
     {
-        using HidStream stream = endpoint.Open();
-        stream.ReadTimeout = IoTimeoutMilliseconds;
-        stream.WriteTimeout = IoTimeoutMilliseconds;
-
-        int reportLength = endpoint.GetMaxOutputReportLength();
-        if (reportLength < command.Length + 1)
-        {
-            throw new InvalidDataException($"Output report length {reportLength} cannot carry this command.");
-        }
-
-        byte[] report = new byte[reportLength];
-        command.CopyTo(report.AsSpan(1));
+        byte[] framedCommand = command.ToArray();
         if (IsReceiver)
         {
-            report[1] |= 0x40;
+            framedCommand[0] |= 0x40;
         }
-        stream.Write(report);
 
         if (!readResponse)
         {
+            transport.WriteOutput(framedCommand, commandOffset: 1);
             return [];
         }
 
-        var response = new byte[Math.Max(ReceiverResponseLength, endpoint.GetMaxInputReportLength())];
-        int bytesRead = stream.Read(response);
-        return response[..bytesRead];
+        return transport.WriteOutputAndRead(framedCommand, ReceiverResponseLength, commandOffset: 1);
     }
 
     private static byte EncodeSensitivity(ushort dpi)

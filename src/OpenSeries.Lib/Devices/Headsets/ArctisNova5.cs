@@ -46,6 +46,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
     private const float EqualizerMaximum = 10;
     private const float EqualizerStep = 0.5f;
     private const byte EqualizerBaseline = 20;
+    private readonly HidTransport transport = new(endpoint, IoTimeoutMilliseconds);
 
     public string Id => identity.Id;
     public string Name => "SteelSeries Arctis Nova 5/5X";
@@ -170,12 +171,8 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
             ushort frequency = EqualizerFrequencies[index];
             byte rawGain = checked((byte)(EqualizerBaseline + MathF.Round(bands[index] * 2)));
             byte gainFlag = rawGain == EqualizerBaseline
-                ? (byte)0x01
-                : index == 0
-                    ? (byte)0x04
-                    : index == EqualizerBands - 1
-                        ? (byte)0x05
-                        : (byte)0x01;
+                ? (byte)0x01 : index == 0 ? (byte)0x04
+                : index == EqualizerBands - 1 ? (byte)0x05 : (byte)0x01;
             int offset = 2 + 6 * index;
 
             command[offset] = (byte)frequency;
@@ -192,7 +189,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
 
     private byte[] ReadDeviceStatus(int minimumLength)
     {
-        using HidStream stream = OpenStream();
+        using HidStream stream = transport.OpenStream();
         stream.Write([0x00, 0xb0]);
 
         var response = new byte[Math.Max(StatusBufferSize, endpoint.GetMaxInputReportLength())];
@@ -213,27 +210,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         SendCommand([0x00, 0x35, 0x01]);
     }
 
-    private void SendCommand(ReadOnlySpan<byte> command)
-    {
-        using HidStream stream = OpenStream();
-        int reportLength = endpoint.GetMaxOutputReportLength();
-        if (reportLength < command.Length || reportLength < MessageSize)
-        {
-            throw new InvalidDataException($"Output report length {reportLength} cannot carry this command.");
-        }
-
-        byte[] report = new byte[reportLength];
-        command.CopyTo(report);
-        stream.Write(report);
-    }
-
-    private HidStream OpenStream()
-    {
-        HidStream stream = endpoint.Open();
-        stream.ReadTimeout = IoTimeoutMilliseconds;
-        stream.WriteTimeout = IoTimeoutMilliseconds;
-        return stream;
-    }
+    private void SendCommand(ReadOnlySpan<byte> command) => transport.WriteOutput(command, minimumReportLength: MessageSize);
 
     private static int Map(
         int value,

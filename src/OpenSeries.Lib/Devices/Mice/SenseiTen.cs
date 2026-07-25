@@ -31,14 +31,14 @@ internal sealed class SenseiTenDefinition : IDeviceDefinition
         }
     }
 
-    public ISteelSeriesDevice Connect(HidDevice endpoint, DeviceIdentity identity) =>
-        new SenseiTen(endpoint, identity);
+    public ISteelSeriesDevice Connect(HidDevice endpoint, DeviceIdentity identity) => new SenseiTen(endpoint, identity);
 }
 
 internal sealed class SenseiTen(HidDevice endpoint, DeviceIdentity identity) : IMouseDevice
 {
     private const int IoTimeoutMilliseconds = 2_000;
     private const int CommandDelayMilliseconds = 50;
+    private readonly HidTransport transport = new(endpoint, IoTimeoutMilliseconds);
 
     public string Id => identity.Id;
     public string Name => ProductId == 0x1834
@@ -145,42 +145,11 @@ internal sealed class SenseiTen(HidDevice endpoint, DeviceIdentity identity) : I
 
     private void SendFeatureAndSave(ReadOnlySpan<byte> command)
     {
-        using (HidStream stream = OpenStream())
-        {
-            int reportLength = endpoint.GetMaxFeatureReportLength();
-            if (reportLength < command.Length + 1)
-            {
-                throw new InvalidDataException($"Feature report length {reportLength} cannot carry this command.");
-            }
-
-            byte[] report = new byte[reportLength];
-            command.CopyTo(report.AsSpan(1));
-            stream.SetFeature(report);
-        }
+        transport.WriteFeature(command, commandOffset: 1);
 
         Thread.Sleep(CommandDelayMilliseconds);
         SendOutput([0x59, 0x00]);
     }
 
-    private void SendOutput(ReadOnlySpan<byte> command)
-    {
-        using HidStream stream = OpenStream();
-        int reportLength = endpoint.GetMaxOutputReportLength();
-        if (reportLength < command.Length + 1)
-        {
-            throw new InvalidDataException($"Output report length {reportLength} cannot carry this command.");
-        }
-
-        byte[] report = new byte[reportLength];
-        command.CopyTo(report.AsSpan(1));
-        stream.Write(report);
-    }
-
-    private HidStream OpenStream()
-    {
-        HidStream stream = endpoint.Open();
-        stream.ReadTimeout = IoTimeoutMilliseconds;
-        stream.WriteTimeout = IoTimeoutMilliseconds;
-        return stream;
-    }
+    private void SendOutput(ReadOnlySpan<byte> command) => transport.WriteOutput(command, commandOffset: 1);
 }
