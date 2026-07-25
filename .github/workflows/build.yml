@@ -13,6 +13,8 @@ jobs:
     name: Compile solution
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
     steps:
       - name: Check out repository
@@ -23,10 +25,13 @@ jobs:
         with:
           dotnet-version: 10.0.x
           dotnet-quality: ga
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
 
       - name: Restore dependencies
         run: >-
           dotnet restore OpenSeries.sln
+          --locked-mode
           --maxcpucount:1
           -p:UseSharedCompilation=false
 

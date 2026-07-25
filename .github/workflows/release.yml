@@ -13,6 +13,9 @@ jobs:
     name: Build release binaries
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+      RestoreLockedMode: true
 
     steps:
       - name: Check out repository
@@ -23,6 +26,8 @@ jobs:
         with:
           dotnet-version: 10.0.x
           dotnet-quality: ga
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
 
       - name: Publish Linux x64
         shell: bash
