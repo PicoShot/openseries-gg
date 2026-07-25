@@ -10,7 +10,14 @@ controlling SteelSeries devices without needing SteelSeries GG. The project
 currently supports selected Arctis headsets and Aerox mice, with readable
 terminal output for people and stable JSON output for scripts.
 
-> OpenSeries is an independent project and is not affiliated with or endorsed
+OpenSeries is more than a CLI tool. `OpenSeries.Lib` is a powerful reusable
+library for discovering supported devices, reading their status, and changing
+any setting implemented for them. Explore the
+[example projects](examples/) to see how the library can power custom
+integrations, live controls, and lighting effects.
+
+> [!IMPORTANT]
+OpenSeries is an independent project and is not affiliated with or endorsed
 > by SteelSeries.
 
 ## Showcase
