@@ -42,6 +42,24 @@ jobs:
             -p:UseSharedCompilation=false
           cp artifacts/linux-x64/openseries artifacts/openseries-linux-x64
 
+      - name: Publish Linux ARM64
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          dotnet publish src/OpenSeries.Cli/OpenSeries.Cli.csproj \
+            --configuration Release \
+            --runtime linux-arm64 \
+            --self-contained false \
+            -p:SelfContained=false \
+            -p:PublishSingleFile=true \
+            -p:DebugType=None \
+            -p:DebugSymbols=false \
+            -p:Version="$version" \
+            -p:PublishDir="$GITHUB_WORKSPACE/artifacts/linux-arm64/" \
+            --maxcpucount:1 \
+            -p:UseSharedCompilation=false
+          cp artifacts/linux-arm64/openseries artifacts/openseries-linux-arm64
+
       - name: Publish Windows x64
         shell: bash
         run: |
@@ -60,6 +78,42 @@ jobs:
             -p:UseSharedCompilation=false
           cp artifacts/win-x64/openseries.exe artifacts/openseries-windows-x64.exe
 
+      - name: Publish Windows x86
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          dotnet publish src/OpenSeries.Cli/OpenSeries.Cli.csproj \
+            --configuration Release \
+            --runtime win-x86 \
+            --self-contained false \
+            -p:SelfContained=false \
+            -p:PublishSingleFile=true \
+            -p:DebugType=None \
+            -p:DebugSymbols=false \
+            -p:Version="$version" \
+            -p:PublishDir="$GITHUB_WORKSPACE/artifacts/win-x86/" \
+            --maxcpucount:1 \
+            -p:UseSharedCompilation=false
+          cp artifacts/win-x86/openseries.exe artifacts/openseries-windows-x86.exe
+
+      - name: Publish Windows ARM64
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          dotnet publish src/OpenSeries.Cli/OpenSeries.Cli.csproj \
+            --configuration Release \
+            --runtime win-arm64 \
+            --self-contained false \
+            -p:SelfContained=false \
+            -p:PublishSingleFile=true \
+            -p:DebugType=None \
+            -p:DebugSymbols=false \
+            -p:Version="$version" \
+            -p:PublishDir="$GITHUB_WORKSPACE/artifacts/win-arm64/" \
+            --maxcpucount:1 \
+            -p:UseSharedCompilation=false
+          cp artifacts/win-arm64/openseries.exe artifacts/openseries-windows-arm64.exe
+
       - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -69,5 +123,8 @@ jobs:
           --verify-tag
           --generate-notes
           --title "$GITHUB_REF_NAME"
-          "artifacts/openseries-linux-x64#Linux x64 (.NET 10 required)"
-          "artifacts/openseries-windows-x64.exe#Windows x64 (.NET 10 required)"
+          "artifacts/openseries-linux-x64#Linux x64 (.NET 10 runtime required)"
+          "artifacts/openseries-linux-arm64#Linux ARM64 (.NET 10 runtime required)"
+          "artifacts/openseries-windows-x64.exe#Windows x64 (.NET 10 runtime required)"
+          "artifacts/openseries-windows-x86.exe#Windows x86 (.NET 10 runtime required)"
+          "artifacts/openseries-windows-arm64.exe#Windows ARM64 (.NET 10 runtime required)"
