@@ -20,11 +20,11 @@ internal static class Reporters
         }
         else
         {
-            var table = new Table().AddColumns("ID", "Model", "PID", "Serial", "Capabilities");
+            var table = new Table().AddColumns("ID", "Model", "PID", "Capabilities");
             foreach (DeviceJson device in rows)
                 table.AddRow(
                     Markup.Escape(device.Id), Markup.Escape(device.Model), device.ProductId,
-                    Markup.Escape(device.SerialNumber ?? "—"), Markup.Escape(string.Join(", ", device.Capabilities)));
+                    Markup.Escape(string.Join(", ", device.Capabilities)));
             AnsiConsole.Write(table);
         }
         return devices.Count == 0 ? 1 : 0;
@@ -89,7 +89,7 @@ internal static class Reporters
                 catch (Exception exception) { errors.Add(exception.Message); failures++; if (!json) CliSupport.Error(device, exception); }
             }
             statuses.Add(new(
-                device.Id, device.Name, $"0x{device.ProductId:x4}", device.SerialNumber,
+                device.Id, device.Name, $"0x{device.ProductId:x4}",
                 CapabilityArray(device), battery, chatMix, errors.Count == 0 ? null : string.Join("; ", errors)));
         }
 
@@ -106,7 +106,6 @@ internal static class Reporters
                 grid.AddRow("[bold]Device ID[/]", Markup.Escape(status.Id));
                 grid.AddRow("[bold]Model[/]", Markup.Escape(status.Model));
                 grid.AddRow("[bold]PID[/]", status.ProductId);
-                grid.AddRow("[bold]Serial[/]", Markup.Escape(status.SerialNumber ?? "Unavailable (path-derived ID)"));
                 grid.AddRow("[bold]Battery[/]", status.Battery is null
                     ? "Capability unavailable"
                     : CliSupport.BatteryDisplay(
@@ -124,7 +123,7 @@ internal static class Reporters
     }
 
     internal static DeviceJson ToDeviceJson(ISteelSeriesDevice device) =>
-        new(device.Id, device.Name, $"0x{device.ProductId:x4}", device.SerialNumber, CapabilityArray(device));
+        new(device.Id, device.Name, $"0x{device.ProductId:x4}", CapabilityArray(device));
 
     private static string[] CapabilityArray(ISteelSeriesDevice device)
     {

@@ -45,7 +45,6 @@ internal sealed class SenseiTen(HidDevice endpoint, DeviceIdentity identity) : I
         ? "SteelSeries Sensei Ten CS:GO Neon Rider Edition"
         : "SteelSeries Sensei Ten";
     public int ProductId => identity.ProductId;
-    public string? SerialNumber => identity.SerialNumber;
     public Features SupportedFeatures =>
         Features.MouseSensitivity |
         Features.PollingRate |

@@ -59,7 +59,6 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
     public string Id => identity.Id;
     public string Name => "SteelSeries Arctis Nova 7";
     public int ProductId => identity.ProductId;
-    public string? SerialNumber => identity.SerialNumber;
 
     public Features SupportedFeatures =>
         Features.Sidetone |

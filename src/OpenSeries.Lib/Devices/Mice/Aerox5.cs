@@ -67,7 +67,6 @@ internal sealed class Aerox5(HidDevice endpoint, DeviceIdentity identity) : IMou
         _ => "SteelSeries Aerox 5 Wireless"
     };
     public int ProductId => identity.ProductId;
-    public string? SerialNumber => identity.SerialNumber;
 
     public Features SupportedFeatures =>
         Features.MouseSensitivity |

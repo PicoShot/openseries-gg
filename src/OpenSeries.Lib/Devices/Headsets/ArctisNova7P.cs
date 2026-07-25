@@ -48,7 +48,6 @@ internal sealed class ArctisNova7P(HidDevice endpoint, DeviceIdentity identity) 
     public string Id => identity.Id;
     public string Name => "SteelSeries Arctis Nova 7P";
     public int ProductId => identity.ProductId;
-    public string? SerialNumber => identity.SerialNumber;
 
     public Features SupportedFeatures =>
         Features.BatteryStatus |

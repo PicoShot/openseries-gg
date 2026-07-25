@@ -5,7 +5,6 @@ public interface ISteelSeriesDevice
     string Id { get; }
     string Name { get; }
     int ProductId { get; }
-    string? SerialNumber { get; }
     Features SupportedFeatures { get; }
 }
 

@@ -50,7 +50,6 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
     public string Id => identity.Id;
     public string Name => "SteelSeries Arctis Nova 5/5X";
     public int ProductId => identity.ProductId;
-    public string? SerialNumber => identity.SerialNumber;
 
     public Features SupportedFeatures =>
         Features.Sidetone |

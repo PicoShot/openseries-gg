@@ -142,7 +142,6 @@ internal sealed record DeviceJson(
     string Id,
     string Model,
     string ProductId,
-    string? SerialNumber,
     string[] Capabilities);
 
 internal sealed record BatteryJson(
@@ -164,7 +163,6 @@ internal sealed record StatusJson(
     string Id,
     string Model,
     string ProductId,
-    string? SerialNumber,
     string[] Capabilities,
     BatteryJson? Battery,
     ChatMixJson? ChatMix,

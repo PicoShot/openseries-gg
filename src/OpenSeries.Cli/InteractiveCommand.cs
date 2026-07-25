@@ -110,7 +110,6 @@ internal sealed class InteractiveCommand : Command<InteractiveSettings>
         details.AddRow("[grey]Type[/]", DeviceType(device));
         details.AddRow("[grey]ID[/]", Markup.Escape(device.Id));
         details.AddRow("[grey]Product ID[/]", $"0x{device.ProductId:x4}");
-        details.AddRow("[grey]Serial[/]", Markup.Escape(device.SerialNumber ?? "Unavailable"));
         AnsiConsole.Write(new Panel(details)
             .Header($"[bold]{Markup.Escape(device.Name)}[/]")
             .Border(BoxBorder.Rounded));
