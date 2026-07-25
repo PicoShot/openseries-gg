@@ -34,28 +34,26 @@ internal sealed class SenseiTenDefinition : IDeviceDefinition
     public ISteelSeriesDevice Connect(HidDevice endpoint, DeviceIdentity identity) => new SenseiTen(endpoint, identity);
 }
 
-internal sealed class SenseiTen(HidDevice endpoint, DeviceIdentity identity) : IMouseDevice
+internal sealed class SenseiTen(HidDevice endpoint, DeviceIdentity identity) : MouseDeviceBase(identity)
 {
     private const int IoTimeoutMilliseconds = 2_000;
     private const int CommandDelayMilliseconds = 50;
     private readonly HidTransport transport = new(endpoint, IoTimeoutMilliseconds);
 
-    public string Id => identity.Id;
-    public string Name => ProductId == 0x1834
+    public override string Name => ProductId == 0x1834
         ? "SteelSeries Sensei Ten CS:GO Neon Rider Edition"
         : "SteelSeries Sensei Ten";
-    public int ProductId => identity.ProductId;
-    public Features SupportedFeatures =>
+    public override Features SupportedFeatures =>
         Features.MouseSensitivity |
         Features.PollingRate |
         Features.Illumination;
 
-    public MouseSensitivityInfo SensitivityInfo { get; } = new(50, 18_000, 50, 5);
-    public IReadOnlyList<ushort> SupportedPollingRates { get; } = [125, 250, 500, 1000];
-    public IReadOnlyList<MouseZone> SupportedIlluminationZones { get; } =
+    public override MouseSensitivityInfo SensitivityInfo { get; } = new(50, 18_000, 50, 5);
+    public override IReadOnlyList<ushort> SupportedPollingRates { get; } = [125, 250, 500, 1000];
+    public override IReadOnlyList<MouseZone> SupportedIlluminationZones { get; } =
         [MouseZone.Logo, MouseZone.Wheel];
 
-    public void SetSensitivity(IReadOnlyList<ushort> dpiPresets)
+    public override void SetSensitivity(IReadOnlyList<ushort> dpiPresets)
     {
         ArgumentNullException.ThrowIfNull(dpiPresets);
         if (dpiPresets.Count is < 1 or > 5)
@@ -85,7 +83,7 @@ internal sealed class SenseiTen(HidDevice endpoint, DeviceIdentity identity) : I
         SendAndSave(command);
     }
 
-    public void SetPollingRate(ushort pollingRate)
+    public override void SetPollingRate(ushort pollingRate)
     {
         byte encoded = pollingRate switch
         {
@@ -100,7 +98,7 @@ internal sealed class SenseiTen(HidDevice endpoint, DeviceIdentity identity) : I
         SendAndSave([0x54, 0x00, encoded]);
     }
 
-    public void SetIllumination(MouseZone zone, RgbColor color)
+    public override void SetIllumination(MouseZone zone, RgbColor color)
     {
         ArgumentNullException.ThrowIfNull(color);
         byte ledId = zone switch
@@ -129,12 +127,6 @@ internal sealed class SenseiTen(HidDevice endpoint, DeviceIdentity identity) : I
 
         SendFeatureAndSave(command);
     }
-
-    public void SetSleepTimer(byte minutes) =>
-        throw new NotSupportedException("Sensei Ten does not provide a sleep timer.");
-
-    public BatteryInfo GetBattery() =>
-        throw new NotSupportedException("Sensei Ten is a wired mouse and has no battery.");
 
     private void SendAndSave(ReadOnlySpan<byte> command)
     {

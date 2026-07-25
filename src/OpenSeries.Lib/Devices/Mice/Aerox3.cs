@@ -36,7 +36,7 @@ internal sealed class Aerox3Definition : IDeviceDefinition
     public ISteelSeriesDevice Connect(HidDevice endpoint, DeviceIdentity identity) => new Aerox3(endpoint, identity);
 }
 
-internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMouseDevice
+internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : MouseDeviceBase(identity)
 {
     private static readonly int[] ReceiverProductIds = [0x1838, 0x1878];
     private static readonly int[] WirelessProductIds = [0x1838, 0x183a, 0x1878, 0x187a];
@@ -69,33 +69,30 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMou
     private bool IsReceiver => ReceiverProductIds.Contains(ProductId);
     private bool IsWirelessModel => WirelessProductIds.Contains(ProductId);
 
-    public string Id => identity.Id;
-    public string Name => ProductId switch
+    public override string Name => ProductId switch
     {
         0x1836 => "SteelSeries Aerox 3",
         0x1878 or 0x187a => "SteelSeries Aerox 3 Wireless CS2 Dragon Lore Edition",
         _ => "SteelSeries Aerox 3 Wireless"
     };
-    public int ProductId => identity.ProductId;
-
-    public Features SupportedFeatures =>
+    public override Features SupportedFeatures =>
         Features.MouseSensitivity |
         Features.PollingRate |
         Features.Illumination |
         (IsWirelessModel ? Features.BatteryStatus | Features.SleepTimer : Features.None);
 
-    public MouseSensitivityInfo SensitivityInfo => IsWirelessModel
+    public override MouseSensitivityInfo SensitivityInfo => IsWirelessModel
         ? new(100, 18_000, 100, 5)
         : new(200, 8_500, 100, 5);
-    public IReadOnlyList<ushort> SupportedPollingRates { get; } = [125, 250, 500, 1000];
-    public IReadOnlyList<MouseZone> SupportedIlluminationZones { get; } =
+    public override IReadOnlyList<ushort> SupportedPollingRates { get; } = [125, 250, 500, 1000];
+    public override IReadOnlyList<MouseZone> SupportedIlluminationZones { get; } =
     [
     MouseZone.Top,
     MouseZone.Middle,
     MouseZone.Bottom
     ];
 
-    public void SetSensitivity(IReadOnlyList<ushort> dpiPresets)
+    public override void SetSensitivity(IReadOnlyList<ushort> dpiPresets)
     {
         ArgumentNullException.ThrowIfNull(dpiPresets);
         if (dpiPresets.Count is < 1 or > 5)
@@ -118,7 +115,7 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMou
         SendAndSave(command);
     }
 
-    public void SetPollingRate(ushort pollingRate)
+    public override void SetPollingRate(ushort pollingRate)
     {
         byte encoded = pollingRate switch
         {
@@ -132,7 +129,7 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMou
         SendAndSave([0x2b, encoded]);
     }
 
-    public void SetIllumination(MouseZone zone, RgbColor color)
+    public override void SetIllumination(MouseZone zone, RgbColor color)
     {
         ArgumentNullException.ThrowIfNull(color);
         if (zone is not (MouseZone.Top or MouseZone.Middle or MouseZone.Bottom))
@@ -153,7 +150,7 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMou
         SendAndSave([.. prefix, color.Red, color.Green, color.Blue]);
     }
 
-    public void SetSleepTimer(byte minutes)
+    public override void SetSleepTimer(byte minutes)
     {
         if (!IsWirelessModel)
         {
@@ -174,7 +171,7 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMou
         ]);
     }
 
-    public BatteryInfo GetBattery()
+    public override BatteryInfo GetBattery()
     {
         if (!IsWirelessModel)
         {
