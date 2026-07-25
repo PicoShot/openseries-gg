@@ -11,6 +11,7 @@ internal static class DeviceDefinitions
         new ArctisNova5Definition(),
         new ArctisNova7Definition(),
         new ArctisNova7PDefinition(),
+        new Aerox3Definition(),
         new Aerox5Definition(),
         new SenseiTenDefinition()
     ];

@@ -31,6 +31,8 @@ terminal output for people and stable JSON output for scripts.
 
 | Device                    | Battery | DPI presets | Polling rate | RGB zones | Sleep timer |
 | ------------------------- | :-----: | :---------: | :----------: | :-------: | :---------: |
+| Aerox 3 Wired             |   N/A   |     Yes     |     Yes      |    Yes    |     N/A     |
+| Aerox 3 Wireless variants |   Yes   |     Yes     |     Yes      |    Yes    |     Yes     |
 | Aerox 5 Wired             |   N/A   |     Yes     |     Yes      |    Yes    |     N/A     |
 | Aerox 5 Wireless variants |   Yes   |     Yes     |     Yes      |    Yes    |     Yes     |
 | Sensei Ten variants       |   N/A   |     Yes     |     Yes      |    Yes    |     N/A     |
