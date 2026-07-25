@@ -7,6 +7,7 @@ game/chat balance bar:
 Game 100%  [───────────────◆───────────────]  100% Chat
 ```
 
+![ChatMix Bar demo](showcase.gif)
 
 ## Run
 

@@ -12,6 +12,8 @@ Top: blue · Middle: red · Bottom: blue
 The animation uses transient lighting writes, so each frame is not saved to the
 mouse's onboard configuration.
 
+![Mouse Police Lights demo](showcase.gif)
+
 ## Run
 
 From the repository root:
