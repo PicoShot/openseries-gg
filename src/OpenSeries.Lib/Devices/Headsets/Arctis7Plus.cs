@@ -66,6 +66,7 @@ internal sealed class Arctis7Plus(HidDevice endpoint, DeviceIdentity identity) :
         new("Smiley", [3, 1.5f, -1.5f, -4, -4, -2.5f, 1.5f, 3, 4, 3.5f]),
         new("Focus", [-5, -1, -3.5f, -2.5f, 4, 6, 3.5f, -3.5f, 0, -3.5f])
     ];
+    public ParametricEqualizerInfo? ParametricEqualizerInfo => null;
 
     public BatteryInfo GetBattery()
     {
@@ -135,6 +136,18 @@ internal sealed class Arctis7Plus(HidDevice endpoint, DeviceIdentity identity) :
         }
         SendCommand(command);
     }
+
+    public void SetMicrophoneVolume(byte volume) =>
+        throw new NotSupportedException($"{Name} does not support microphone volume control.");
+
+    public void SetMicrophoneMuteLedBrightness(byte brightness) =>
+        throw new NotSupportedException($"{Name} does not support microphone mute LED brightness control.");
+
+    public void SetVolumeLimiter(bool enabled) =>
+        throw new NotSupportedException($"{Name} does not support volume limiter control.");
+
+    public void SetParametricEqualizer(IReadOnlyList<ParametricEqualizerBand> bands) =>
+        throw new NotSupportedException($"{Name} does not support a parametric equalizer.");
 
     private byte[] ReadDeviceStatus()
     {

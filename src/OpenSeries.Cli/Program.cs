@@ -15,10 +15,14 @@ app.Configure(configuration =>
         headset.AddCommand<ChatMixCommand>("chatmix");
         headset.AddCommand<SidetoneCommand>("sidetone");
         headset.AddCommand<InactiveTimeCommand>("inactive-time");
+        headset.AddCommand<MicrophoneVolumeCommand>("microphone-volume");
+        headset.AddCommand<MicrophoneMuteLedCommand>("microphone-mute-led");
+        headset.AddCommand<VolumeLimiterCommand>("volume-limiter");
         headset.AddBranch("equalizer", equalizer =>
         {
             equalizer.AddCommand<EqualizerPresetCommand>("preset");
             equalizer.AddCommand<EqualizerSetCommand>("set");
+            equalizer.AddCommand<ParametricEqualizerCommand>("parametric");
         });
     });
     configuration.AddBranch("mouse", mouse =>

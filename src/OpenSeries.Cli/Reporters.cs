@@ -137,6 +137,21 @@ internal static class Reporters
             values.Add("InactiveTimeRange:0-90");
         if (device is IHeadsetDevice headset3 && device.SupportedFeatures.HasFlag(DeviceFeatures.Equalizer))
             values.Add($"Equalizer:{headset3.EqualizerInfo.BandCount} bands,{headset3.EqualizerInfo.Minimum}-{headset3.EqualizerInfo.Maximum} dB,step {headset3.EqualizerInfo.Step}");
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.MicrophoneVolume))
+            values.Add("MicrophoneVolumeRange:0-128");
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.MicrophoneMuteLedBrightness))
+            values.Add("MicrophoneMuteLedBrightnessRange:0-3");
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.VolumeLimiter))
+            values.Add("VolumeLimiter:on,off");
+        if (device is IHeadsetDevice headset4 &&
+            device.SupportedFeatures.HasFlag(DeviceFeatures.ParametricEqualizer) &&
+            headset4.ParametricEqualizerInfo is { } parametric)
+        {
+            values.Add(
+                $"ParametricEqualizer:1-{parametric.MaximumBandCount} bands," +
+                $"{parametric.MinimumFrequency}-{parametric.MaximumFrequency} Hz," +
+                $"{parametric.MinimumGain}-{parametric.MaximumGain} dB");
+        }
         if (device is IMouseDevice mouse && device.SupportedFeatures.HasFlag(DeviceFeatures.MouseSensitivity))
             values.Add($"SensitivityRange:{mouse.SensitivityInfo.Minimum}-{mouse.SensitivityInfo.Maximum},step {mouse.SensitivityInfo.Step},max {mouse.SensitivityInfo.MaximumPresetCount} presets");
         if (device is IMouseDevice mouse2 && device.SupportedFeatures.HasFlag(DeviceFeatures.PollingRate))

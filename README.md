@@ -21,12 +21,13 @@ terminal output for people and stable JSON output for scripts.
 
 ### Headsets
 
-| Device                      | Battery | ChatMix | Sidetone | Inactive time | Equalizer | EQ presets |
-| --------------------------- | ------- | :-----: | :------: | :-----------: | :-------: | :--------: |
-| Arctis 7+ variants          | Yes     |   Yes   |   Yes    |      Yes      |    Yes    |    Yes     |
-| Arctis Nova 5 / 5X          | Yes     |   Yes   |   Yes    |      Yes      |    Yes    |    Yes     |
-| Arctis Nova 7 / 7X variants | Yes     |   Yes   |   Yes    |      Yes      |    Yes    |    Yes     |
-| Arctis Nova 7P / 7P v2      | Yes     |   No    |    No    |      Yes      |    Yes    |    Yes     |
+| Device                      | Battery | ChatMix | Sidetone | Inactive time | Equalizer | EQ presets | Advanced controls |
+| --------------------------- | ------- | :-----: | :------: | :-----------: | :-------: | :--------: | :---------------: |
+| Arctis 7+ variants          | Yes     |   Yes   |   Yes    |      Yes      |    Yes    |    Yes     |        N/A        |
+| Arctis Nova 5 / 5X          | Yes     |   Yes   |   Yes    |      Yes      |    Yes    |    Yes     |        Yes        |
+| Arctis Nova 7 / 7X variants | Yes     |   Yes   |   Yes    |      Yes      |    Yes    |    Yes     |        N/A        |
+| Arctis Nova 7P / 7P v2      | Yes     |   No    |    No    |      Yes      |    Yes    |    Yes     |        N/A        |
+
 ### Mice
 
 | Device                    | Battery | DPI presets | Polling rate | RGB zones | Sleep timer |
@@ -78,6 +79,10 @@ openseries headset chatmix
 openseries headset sidetone 50
 openseries headset equalizer preset 1 # 0=Flat, 1=Bass Boost, 2=Smiley, 3=Focus
 openseries headset inactive-time 5 # in minute
+openseries headset microphone-volume 96
+openseries headset microphone-mute-led 2
+openseries headset volume-limiter on
+openseries headset equalizer parametric "32:3.5:1.414:low-shelf,1000:0:1.0:peaking"
 
 # mouse example
 openseries mouse battery

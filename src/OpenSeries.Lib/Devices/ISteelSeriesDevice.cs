@@ -21,5 +21,9 @@ public enum Features
     MouseSensitivity = 1 << 6,
     PollingRate = 1 << 7,
     Illumination = 1 << 8,
-    SleepTimer = 1 << 9
+    SleepTimer = 1 << 9,
+    MicrophoneVolume = 1 << 10,
+    MicrophoneMuteLedBrightness = 1 << 11,
+    VolumeLimiter = 1 << 12,
+    ParametricEqualizer = 1 << 13
 }

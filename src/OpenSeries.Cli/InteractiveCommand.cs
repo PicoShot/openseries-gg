@@ -135,11 +135,19 @@ internal sealed class InteractiveCommand : Command<InteractiveSettings>
                 table.AddRow("Sidetone", "Level 0-128");
             if (device.SupportedFeatures.HasFlag(DeviceFeatures.InactiveTime))
                 table.AddRow("Inactive time", "0-90 minutes");
+            if (device.SupportedFeatures.HasFlag(DeviceFeatures.MicrophoneVolume))
+                table.AddRow("Microphone volume", "0-128");
+            if (device.SupportedFeatures.HasFlag(DeviceFeatures.MicrophoneMuteLedBrightness))
+                table.AddRow("Microphone mute LED", "0=off, 1=low, 2=medium, 3=high");
+            if (device.SupportedFeatures.HasFlag(DeviceFeatures.VolumeLimiter))
+                table.AddRow("Volume limiter", "On or off");
             if (device.SupportedFeatures.HasFlag(DeviceFeatures.EqualizerPreset))
                 table.AddRow("EQ presets", Markup.Escape(string.Join(", ", headset.EqualizerPresets.Select(preset => preset.Name))));
             if (device.SupportedFeatures.HasFlag(DeviceFeatures.Equalizer))
                 table.AddRow("Custom equalizer",
                     $"{headset.EqualizerInfo.BandCount} bands, {headset.EqualizerInfo.Minimum}-{headset.EqualizerInfo.Maximum} dB, step {headset.EqualizerInfo.Step}");
+            if (device.SupportedFeatures.HasFlag(DeviceFeatures.ParametricEqualizer))
+                table.AddRow("Parametric equalizer", "1-10 frequency:gain:q:filter bands");
         }
 
         if (device is IMouseDevice mouse)
@@ -187,6 +195,16 @@ internal sealed class InteractiveCommand : Command<InteractiveSettings>
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.InactiveTime))
             operations["Set inactive time"] = () =>
                 device.SetInactiveTime((ushort)AskInRange("Inactive time in minutes", 0, 90));
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.MicrophoneVolume))
+            operations["Set microphone volume"] = () =>
+                device.SetMicrophoneVolume((byte)AskInRange("Microphone volume", 0, 128));
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.MicrophoneMuteLedBrightness))
+            operations["Set microphone mute LED brightness"] = () =>
+                device.SetMicrophoneMuteLedBrightness(
+                    (byte)AskInRange("Brightness (0=off, 1=low, 2=medium, 3=high)", 0, 3));
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.VolumeLimiter))
+            operations["Set volume limiter"] = () =>
+                device.SetVolumeLimiter(AnsiConsole.Confirm("Enable the volume limiter?"));
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.EqualizerPreset))
             operations["Apply equalizer preset"] = () =>
             {
@@ -207,6 +225,13 @@ internal sealed class InteractiveCommand : Command<InteractiveSettings>
                     parts.Any(part => !float.TryParse(part, NumberStyles.Float, CultureInfo.InvariantCulture, out _)))
                     throw new ArgumentException($"Exactly {info.BandCount} numeric bands are required.");
                 device.SetEqualizer(parts.Select(part => float.Parse(part, CultureInfo.InvariantCulture)).ToArray());
+            };
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.ParametricEqualizer))
+            operations["Set parametric equalizer"] = () =>
+            {
+                string input = AnsiConsole.Ask<string>(
+                    "Comma-separated bands [grey](frequency:gain:q:filter)[/]:");
+                device.SetParametricEqualizer(ParametricEqualizerCommand.ParseBands(input));
             };
     }
 
@@ -289,8 +314,12 @@ internal sealed class InteractiveCommand : Command<InteractiveSettings>
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.Chatmix)) yield return "ChatMix";
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.Sidetone)) yield return "Sidetone";
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.InactiveTime)) yield return "Inactive time";
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.MicrophoneVolume)) yield return "Microphone volume";
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.MicrophoneMuteLedBrightness)) yield return "Microphone mute LED";
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.VolumeLimiter)) yield return "Volume limiter";
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.EqualizerPreset)) yield return "EQ presets";
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.Equalizer)) yield return "Equalizer";
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.ParametricEqualizer)) yield return "Parametric EQ";
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.MouseSensitivity)) yield return "DPI";
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.PollingRate)) yield return "Polling";
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.Illumination)) yield return "RGB";

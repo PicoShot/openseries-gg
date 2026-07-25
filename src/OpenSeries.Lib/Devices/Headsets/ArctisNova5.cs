@@ -46,6 +46,11 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
     private const float EqualizerMaximum = 10;
     private const float EqualizerStep = 0.5f;
     private const byte EqualizerBaseline = 20;
+    private const ushort ParametricFrequencyMinimum = 20;
+    private const ushort ParametricFrequencyMaximum = 20_000;
+    private const ushort DisabledParametricFrequency = 20_001;
+    private const float ParametricQMinimum = 0.2f;
+    private const float ParametricQMaximum = 10;
     private readonly HidTransport transport = new(endpoint, IoTimeoutMilliseconds);
 
     public string Id => identity.Id;
@@ -58,7 +63,11 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         Features.Chatmix |
         Features.InactiveTime |
         Features.Equalizer |
-        Features.EqualizerPreset;
+        Features.EqualizerPreset |
+        Features.MicrophoneVolume |
+        Features.MicrophoneMuteLedBrightness |
+        Features.VolumeLimiter |
+        Features.ParametricEqualizer;
 
     public EqualizerInfo EqualizerInfo { get; } = new
     (
@@ -75,6 +84,17 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         new("Focus", [-5, -3.5f, -1, -3.5f, -2.5f, 4, 6, -3.5f, 0, 0]),
         new("Smiley", [3, 3.5f, 1.5f, -1.5f, -4, -4, -2.5f, 1.5f, 3, 4])
     ];
+
+    public ParametricEqualizerInfo ParametricEqualizerInfo { get; } = new(
+        EqualizerBands,
+        ParametricFrequencyMinimum,
+        ParametricFrequencyMaximum,
+        EqualizerMinimum,
+        EqualizerMaximum,
+        EqualizerStep,
+        ParametricQMinimum,
+        ParametricQMaximum,
+        Enum.GetValues<EqualizerFilterType>());
 
     public BatteryInfo GetBattery()
     {
@@ -187,6 +207,94 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         SaveState();
     }
 
+    public void SetMicrophoneVolume(byte volume)
+    {
+        if (volume > 128)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(volume), "Microphone volume must be between 0 and 128.");
+        }
+
+        // Nova 5 exposes sixteen microphone levels, 0x00 through 0x0f.
+        byte deviceLevel = (byte)Math.Min(volume / 8, 15);
+        SendCommand([0x00, 0x37, deviceLevel]);
+        SaveState();
+    }
+
+    public void SetMicrophoneMuteLedBrightness(byte brightness)
+    {
+        byte deviceBrightness = brightness switch
+        {
+            0 => 0x00,
+            1 => 0x01,
+            2 => 0x04,
+            3 => 0x0a,
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(brightness), "Microphone mute LED brightness must be between 0 and 3.")
+        };
+
+        SendCommand([0x00, 0xae, deviceBrightness]);
+        SaveState();
+    }
+
+    public void SetVolumeLimiter(bool enabled)
+    {
+        SendCommand([0x00, 0x27, enabled ? (byte)0x01 : (byte)0x00]);
+        SaveState();
+    }
+
+    public void SetParametricEqualizer(IReadOnlyList<ParametricEqualizerBand> bands)
+    {
+        ArgumentNullException.ThrowIfNull(bands);
+        if (bands.Count is < 1 or > EqualizerBands)
+        {
+            throw new ArgumentException(
+                $"Between one and {EqualizerBands} parametric equalizer bands are required.",
+                nameof(bands));
+        }
+
+        var command = new byte[MessageSize];
+        command[1] = 0x33;
+        for (int index = 0; index < bands.Count; index++)
+        {
+            ParametricEqualizerBand band = bands[index];
+            if (band.Frequency is < ParametricFrequencyMinimum or > ParametricFrequencyMaximum)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(bands),
+                    $"Band {index + 1} frequency must be between 20 and 20000 Hz.");
+            }
+            if (band.Gain is < EqualizerMinimum or > EqualizerMaximum ||
+                !UsesStep(band.Gain, EqualizerStep))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(bands),
+                    $"Band {index + 1} gain must be between -10 and +10 dB in 0.5 dB increments.");
+            }
+            if (band.QFactor is < ParametricQMinimum or > ParametricQMaximum ||
+                !UsesStep(band.QFactor, 0.001f))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(bands),
+                    $"Band {index + 1} Q factor must be between 0.2 and 10.0 in 0.001 increments.");
+            }
+
+            WriteParametricBand(command, index, band);
+        }
+
+        // The device expects all ten slots; unused slots use frequency 20001.
+        for (int index = bands.Count; index < EqualizerBands; index++)
+        {
+            WriteParametricBand(
+                command,
+                index,
+                new(DisabledParametricFrequency, 0, 1.414f, EqualizerFilterType.Peaking));
+        }
+
+        SendCommand(command);
+        SaveState();
+    }
+
     private byte[] ReadDeviceStatus(int minimumLength)
     {
         using HidStream stream = transport.OpenStream();
@@ -236,5 +344,34 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         }
 
         return levels - 1;
+    }
+
+    private static void WriteParametricBand(
+        Span<byte> command,
+        int index,
+        ParametricEqualizerBand band)
+    {
+        int offset = 2 + 6 * index;
+        command[offset] = (byte)band.Frequency;
+        command[offset + 1] = (byte)(band.Frequency >> 8);
+        command[offset + 2] = band.Filter switch
+        {
+            EqualizerFilterType.Peaking => 0x01,
+            EqualizerFilterType.LowPass => 0x02,
+            EqualizerFilterType.HighPass => 0x03,
+            EqualizerFilterType.LowShelf => 0x04,
+            EqualizerFilterType.HighShelf => 0x05,
+            _ => throw new ArgumentOutOfRangeException(nameof(band), "Unknown equalizer filter type.")
+        };
+        command[offset + 3] = checked((byte)(EqualizerBaseline + MathF.Round(band.Gain * 2)));
+        ushort encodedQ = checked((ushort)MathF.Round(band.QFactor * 1_000));
+        command[offset + 4] = (byte)encodedQ;
+        command[offset + 5] = (byte)(encodedQ >> 8);
+    }
+
+    private static bool UsesStep(float value, float step)
+    {
+        float steps = value / step;
+        return MathF.Abs(steps - MathF.Round(steps)) <= 0.0001f;
     }
 }

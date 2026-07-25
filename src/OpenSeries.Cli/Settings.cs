@@ -34,6 +34,24 @@ internal sealed class InactiveTimeSettings : DeviceSettings
     public int Minutes { get; init; }
 }
 
+internal sealed class MicrophoneVolumeSettings : DeviceSettings
+{
+    [CommandArgument(0, "<VOLUME>")]
+    public int Volume { get; init; }
+}
+
+internal sealed class MicrophoneMuteLedSettings : DeviceSettings
+{
+    [CommandArgument(0, "<BRIGHTNESS>")]
+    public int Brightness { get; init; }
+}
+
+internal sealed class VolumeLimiterSettings : DeviceSettings
+{
+    [CommandArgument(0, "<STATE>")]
+    public string State { get; init; } = "";
+}
+
 internal sealed class PresetSettings : DeviceSettings
 {
     [CommandArgument(0, "<PRESET>")]
@@ -41,6 +59,12 @@ internal sealed class PresetSettings : DeviceSettings
 }
 
 internal sealed class EqualizerSettings : DeviceSettings
+{
+    [CommandArgument(0, "<BANDS>")]
+    public string Bands { get; init; } = "";
+}
+
+internal sealed class ParametricEqualizerSettings : DeviceSettings
 {
     [CommandArgument(0, "<BANDS>")]
     public string Bands { get; init; } = "";

@@ -229,6 +229,80 @@ internal sealed class InactiveTimeCommand : Command<InactiveTimeSettings>
     }
 }
 
+[Description("Set headset microphone volume (0-128).")]
+internal sealed class MicrophoneVolumeCommand : Command<MicrophoneVolumeSettings>
+{
+    protected override int Execute(
+        CommandContext context,
+        MicrophoneVolumeSettings settings,
+        CancellationToken cancellationToken)
+    {
+        if (settings.Volume is < 0 or > 128)
+        {
+            AnsiConsole.MarkupLine("[red]Microphone volume must be between 0 and 128.[/]");
+            return 1;
+        }
+
+        return Setters.Apply(settings.Device, DeviceFeatures.MicrophoneVolume,
+            headset => headset.SetMicrophoneVolume((byte)settings.Volume),
+            $"Microphone volume set to {settings.Volume}.");
+    }
+}
+
+[Description("Set microphone mute LED brightness (0=off, 1=low, 2=medium, 3=high).")]
+internal sealed class MicrophoneMuteLedCommand : Command<MicrophoneMuteLedSettings>
+{
+    protected override int Execute(
+        CommandContext context,
+        MicrophoneMuteLedSettings settings,
+        CancellationToken cancellationToken)
+    {
+        if (settings.Brightness is < 0 or > 3)
+        {
+            AnsiConsole.MarkupLine("[red]Microphone mute LED brightness must be between 0 and 3.[/]");
+            return 1;
+        }
+
+        return Setters.Apply(settings.Device, DeviceFeatures.MicrophoneMuteLedBrightness,
+            headset => headset.SetMicrophoneMuteLedBrightness((byte)settings.Brightness),
+            $"Microphone mute LED brightness set to {settings.Brightness}.");
+    }
+}
+
+[Description("Enable or disable the headset volume limiter.")]
+internal sealed class VolumeLimiterCommand : Command<VolumeLimiterSettings>
+{
+    protected override int Execute(
+        CommandContext context,
+        VolumeLimiterSettings settings,
+        CancellationToken cancellationToken)
+    {
+        bool enabled;
+        switch (settings.State.ToLowerInvariant())
+        {
+            case "on":
+            case "enabled":
+            case "true":
+            case "1":
+                enabled = true;
+                break;
+            case "off":
+            case "disabled":
+            case "false":
+            case "0":
+                enabled = false;
+                break;
+            default:
+                AnsiConsole.MarkupLine("[red]Volume limiter state must be on or off.[/]");
+                return 1;
+        }
+
+        return Setters.Apply(settings.Device, DeviceFeatures.VolumeLimiter,
+            headset => headset.SetVolumeLimiter(enabled),
+            $"Volume limiter {(enabled ? "enabled" : "disabled")}.");
+    }
+}
+
 [Description("Apply an equalizer preset by index or name.")]
 internal sealed class EqualizerPresetCommand : Command<PresetSettings>
 {
@@ -274,6 +348,96 @@ internal sealed class EqualizerSetCommand : Command<EqualizerSettings>
         }
         return Setters.Apply(settings.Device, DeviceFeatures.Equalizer,
             headset => headset.SetEqualizer(bands), "Custom equalizer applied.");
+    }
+}
+
+[Description("Set one to ten parametric EQ bands as frequency:gain:q:filter.")]
+internal sealed class ParametricEqualizerCommand : Command<ParametricEqualizerSettings>
+{
+    protected override int Execute(
+        CommandContext context,
+        ParametricEqualizerSettings settings,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<ParametricEqualizerBand> bands;
+        try
+        {
+            bands = ParseBands(settings.Bands);
+        }
+        catch (ArgumentException exception)
+        {
+            AnsiConsole.MarkupLine($"[red]{Markup.Escape(exception.Message)}[/]");
+            return 1;
+        }
+
+        return Setters.Apply(settings.Device, DeviceFeatures.ParametricEqualizer,
+            headset => headset.SetParametricEqualizer(bands),
+            "Parametric equalizer applied.");
+    }
+
+    internal static IReadOnlyList<ParametricEqualizerBand> ParseBands(string value)
+    {
+        string[] encodedBands = value.Split(
+            ',',
+            StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (encodedBands.Length is < 1 or > 10)
+        {
+            throw new ArgumentException("Parametric EQ requires between one and ten bands.");
+        }
+
+        var bands = new List<ParametricEqualizerBand>(encodedBands.Length);
+        for (int index = 0; index < encodedBands.Length; index++)
+        {
+            string[] values = encodedBands[index].Split(':', StringSplitOptions.TrimEntries);
+            if (values.Length != 4 ||
+                !ushort.TryParse(values[0], NumberStyles.None, CultureInfo.InvariantCulture, out ushort frequency) ||
+                !float.TryParse(values[1], NumberStyles.Float, CultureInfo.InvariantCulture, out float gain) ||
+                !float.TryParse(values[2], NumberStyles.Float, CultureInfo.InvariantCulture, out float qFactor) ||
+                !TryParseFilter(values[3], out EqualizerFilterType filter))
+            {
+                throw new ArgumentException(
+                    $"Band {index + 1} must use frequency:gain:q:filter.");
+            }
+            if (frequency is < 20 or > 20_000)
+            {
+                throw new ArgumentException(
+                    $"Band {index + 1} frequency must be between 20 and 20000 Hz.");
+            }
+            if (gain is < -10 or > 10 || !UsesStep(gain, 0.5f))
+            {
+                throw new ArgumentException(
+                    $"Band {index + 1} gain must be between -10 and +10 dB in 0.5 dB increments.");
+            }
+            if (qFactor is < 0.2f or > 10 || !UsesStep(qFactor, 0.001f))
+            {
+                throw new ArgumentException(
+                    $"Band {index + 1} Q factor must be between 0.2 and 10.0 in 0.001 increments.");
+            }
+
+            bands.Add(new(frequency, gain, qFactor, filter));
+        }
+
+        return bands;
+    }
+
+    private static bool TryParseFilter(string value, out EqualizerFilterType filter)
+    {
+        filter = value.ToLowerInvariant() switch
+        {
+            "peaking" or "peak" => EqualizerFilterType.Peaking,
+            "low-pass" or "lowpass" => EqualizerFilterType.LowPass,
+            "high-pass" or "highpass" => EqualizerFilterType.HighPass,
+            "low-shelf" or "lowshelf" => EqualizerFilterType.LowShelf,
+            "high-shelf" or "highshelf" => EqualizerFilterType.HighShelf,
+            _ => (EqualizerFilterType)(-1)
+        };
+        return Enum.IsDefined(filter);
+    }
+
+    private static bool UsesStep(float value, float step)
+    {
+        float steps = value / step;
+        return MathF.Abs(steps - MathF.Round(steps)) <= 0.0001f;
     }
 }
 
