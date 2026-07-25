@@ -28,9 +28,8 @@ internal sealed class Arctis7PlusDefinition : IDeviceDefinition
     public ISteelSeriesDevice Connect(HidDevice endpoint, DeviceIdentity identity) => new Arctis7Plus(endpoint, identity);
 }
 
-internal sealed class Arctis7Plus(HidDevice endpoint, DeviceIdentity identity) : HeadsetDeviceBase(identity)
+internal sealed class Arctis7Plus(HidDevice endpoint, DeviceIdentity identity) : HeadsetDeviceBase(endpoint, identity)
 {
-    private const int IoTimeoutMilliseconds = 2_000;
     private const int MessageSize = 64;
     private const int StatusBufferSize = 128;
     private const int EqualizerBands = 10;
@@ -38,7 +37,6 @@ internal sealed class Arctis7Plus(HidDevice endpoint, DeviceIdentity identity) :
     private const float EqualizerMaximum = 12;
     private const float EqualizerStep = 0.5f;
     private const byte EqualizerBaseline = 0x18;
-    private readonly HidTransport transport = new(endpoint, IoTimeoutMilliseconds);
 
     public override string Name => "SteelSeries Arctis 7+";
     public override Features SupportedFeatures =>
@@ -135,18 +133,15 @@ internal sealed class Arctis7Plus(HidDevice endpoint, DeviceIdentity identity) :
 
     private byte[] ReadDeviceStatus()
     {
-        using HidStream stream = transport.OpenStream();
-        stream.Write([0x00, 0xb0]);
-        var response = new byte[Math.Max(StatusBufferSize, endpoint.GetMaxInputReportLength())];
-        int bytesRead = stream.Read(response);
-        if (bytesRead < 6)
-            throw new InvalidDataException($"Device returned a short status response ({bytesRead} bytes).");
+        byte[] response = Transport.WriteOutputAndRead([0x00, 0xb0], StatusBufferSize);
+        if (response.Length < 6)
+            throw new InvalidDataException($"Device returned a short status response ({response.Length} bytes).");
 
-        int statusOffset = bytesRead >= 7 && response[0] == 0x00 && response[1] == 0xb0 ? 1 : 0;
-        return response[statusOffset..bytesRead];
+        int statusOffset = response.Length >= 7 && response[0] == 0x00 && response[1] == 0xb0 ? 1 : 0;
+        return response[statusOffset..];
     }
 
-    private void SendCommand(ReadOnlySpan<byte> command) => transport.WriteOutput(command, minimumReportLength: MessageSize);
+    private void SendCommand(ReadOnlySpan<byte> command) => Transport.WriteOutput(command, minimumReportLength: MessageSize);
 
     private static int Map(
         int value,

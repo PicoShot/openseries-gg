@@ -1,6 +1,6 @@
 namespace OpenSeries.Devices;
 
-public interface ISteelSeriesDevice
+public interface ISteelSeriesDevice : IDisposable
 {
     string Id { get; }
     string Name { get; }

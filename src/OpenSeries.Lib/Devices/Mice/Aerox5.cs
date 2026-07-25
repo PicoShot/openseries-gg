@@ -40,7 +40,7 @@ internal sealed class Aerox5Definition : IDeviceDefinition
         new Aerox5(endpoint, identity);
 }
 
-internal sealed class Aerox5(HidDevice endpoint, DeviceIdentity identity) : MouseDeviceBase(identity)
+internal sealed class Aerox5(HidDevice endpoint, DeviceIdentity identity) : MouseDeviceBase(endpoint, identity)
 {
     private static readonly int[] ReceiverProductIds = [0x1852, 0x185c, 0x1860];
     private static readonly int[] WirelessProductIds = [0x1852, 0x1854, 0x185c, 0x185e, 0x1860, 0x1862];
@@ -51,10 +51,8 @@ internal sealed class Aerox5(HidDevice endpoint, DeviceIdentity identity) : Mous
         0x8b, 0x91, 0x97, 0x9d, 0xa3, 0xa9, 0xaf, 0xbe, 0xc1, 0xc8, 0xce, 0xd4
     ];
 
-    private const int IoTimeoutMilliseconds = 2_000;
     private const int ReceiverResponseLength = 64;
     private const int CommandDelayMilliseconds = 50;
-    private readonly HidTransport transport = new(endpoint, IoTimeoutMilliseconds);
 
     private bool IsReceiver => ReceiverProductIds.Contains(ProductId);
     private bool IsWirelessModel => WirelessProductIds.Contains(ProductId);
@@ -208,11 +206,11 @@ internal sealed class Aerox5(HidDevice endpoint, DeviceIdentity identity) : Mous
 
         if (!readResponse)
         {
-            transport.WriteOutput(framedCommand, commandOffset: 1);
+            Transport.WriteOutput(framedCommand, commandOffset: 1);
             return [];
         }
 
-        return transport.WriteOutputAndRead(framedCommand, ReceiverResponseLength, commandOffset: 1);
+        return Transport.WriteOutputAndRead(framedCommand, ReceiverResponseLength, commandOffset: 1);
     }
 
     private static byte EncodeSensitivity(ushort dpi)

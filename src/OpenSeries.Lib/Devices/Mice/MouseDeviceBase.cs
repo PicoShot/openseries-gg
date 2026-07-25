@@ -2,8 +2,9 @@ using OpenSeries.Protocols;
 
 namespace OpenSeries.Devices.Mice;
 
-internal abstract class MouseDeviceBase(DeviceIdentity identity) : IMouseDevice
+internal abstract class MouseDeviceBase(HidSharp.HidDevice endpoint, DeviceIdentity identity) : IMouseDevice
 {
+    protected HidTransport Transport { get; } = new(endpoint, 2_000);
     public string Id => identity.Id;
     public abstract string Name { get; }
     public int ProductId => identity.ProductId;
@@ -24,6 +25,8 @@ internal abstract class MouseDeviceBase(DeviceIdentity identity) : IMouseDevice
     public virtual void SetSleepTimer(byte minutes) => throw Unsupported("sleep timer");
 
     public virtual BatteryInfo GetBattery() => throw Unsupported("battery status");
+
+    public void Dispose() => Transport.Dispose();
 
     private NotSupportedException Unsupported(string feature) => new($"{Name} does not support {feature}.");
 }

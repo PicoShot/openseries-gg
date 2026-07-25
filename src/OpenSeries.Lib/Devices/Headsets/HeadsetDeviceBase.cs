@@ -2,8 +2,9 @@ using OpenSeries.Protocols;
 
 namespace OpenSeries.Devices.Headsets;
 
-internal abstract class HeadsetDeviceBase(DeviceIdentity identity) : IHeadsetDevice
+internal abstract class HeadsetDeviceBase(HidSharp.HidDevice endpoint, DeviceIdentity identity) : IHeadsetDevice
 {
+    protected HidTransport Transport { get; } = new(endpoint, 2_000);
     public string Id => identity.Id;
     public abstract string Name { get; }
     public int ProductId => identity.ProductId;
@@ -38,6 +39,8 @@ internal abstract class HeadsetDeviceBase(DeviceIdentity identity) : IHeadsetDev
     public virtual void SetBluetoothWhenPoweredOn(bool enabled) => throw Unsupported("Bluetooth power-on control");
 
     public virtual void SetBluetoothCallVolume(BluetoothCallVolumeMode mode) => throw Unsupported("Bluetooth call volume control");
+
+    public void Dispose() => Transport.Dispose();
 
     private NotSupportedException Unsupported(string feature) => new($"{Name} does not support {feature}.");
 }

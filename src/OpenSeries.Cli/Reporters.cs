@@ -8,7 +8,7 @@ internal static class Reporters
 {
     internal static int List(bool json)
     {
-        IReadOnlyList<ISteelSeriesDevice> devices = CliSupport.Discover(json);
+        using DeviceSelection<ISteelSeriesDevice> devices = CliSupport.Discover(json);
         var rows = devices.Select(ToDeviceJson).ToArray();
         if (json)
         {
@@ -32,7 +32,8 @@ internal static class Reporters
 
     internal static int Status(string? selector, bool json)
     {
-        IReadOnlyList<ISteelSeriesDevice> devices = CliSupport.Discover(json);
+        using DeviceSelection<ISteelSeriesDevice> discovered = CliSupport.Discover(json);
+        IReadOnlyList<ISteelSeriesDevice> devices = discovered;
         if (!string.IsNullOrWhiteSpace(selector))
         {
             devices = devices.Where(device => device.Id == selector).ToArray();

@@ -2,38 +2,26 @@ using HidSharp;
 
 namespace OpenSeries.Protocols;
 
-internal sealed class HidTransport(HidDevice endpoint, int timeoutMilliseconds)
+internal sealed class HidTransport(HidDevice endpoint, int timeoutMilliseconds) : IDisposable
 {
-    internal HidStream OpenStream()
-    {
-        HidStream stream = endpoint.Open();
-        stream.ReadTimeout = timeoutMilliseconds;
-        stream.WriteTimeout = timeoutMilliseconds;
-        return stream;
-    }
+    private readonly object syncRoot = new();
+    private HidStream? stream;
+    private bool disposed;
 
     internal void WriteOutput(ReadOnlySpan<byte> command, int commandOffset = 0, int minimumReportLength = 0)
     {
-        using HidStream stream = OpenStream();
+        EnsureNotDisposed();
         byte[] report = CreateReport(
-            command,
-            commandOffset,
-            endpoint.GetMaxOutputReportLength(),
-            minimumReportLength,
-            "Output");
-        stream.Write(report);
+            command, commandOffset, endpoint.GetMaxOutputReportLength(), minimumReportLength, "Output");
+        Execute(activeStream => activeStream.Write(report));
     }
 
     internal void WriteFeature(ReadOnlySpan<byte> command, int commandOffset = 0, int minimumReportLength = 0)
     {
-        using HidStream stream = OpenStream();
+        EnsureNotDisposed();
         byte[] report = CreateReport(
-            command,
-            commandOffset,
-            endpoint.GetMaxFeatureReportLength(),
-            minimumReportLength,
-            "Feature");
-        stream.SetFeature(report);
+            command, commandOffset, endpoint.GetMaxFeatureReportLength(), minimumReportLength, "Feature");
+        Execute(activeStream => activeStream.SetFeature(report));
     }
 
     internal byte[] WriteOutputAndRead(
@@ -42,18 +30,85 @@ internal sealed class HidTransport(HidDevice endpoint, int timeoutMilliseconds)
         int commandOffset = 0,
         int minimumReportLength = 0)
     {
-        using HidStream stream = OpenStream();
+        EnsureNotDisposed();
         byte[] report = CreateReport(
-            command,
-            commandOffset,
-            endpoint.GetMaxOutputReportLength(),
-            minimumReportLength,
-            "Output");
-        stream.Write(report);
+            command, commandOffset, endpoint.GetMaxOutputReportLength(), minimumReportLength, "Output");
+        return Execute(activeStream =>
+        {
+            activeStream.Write(report);
+            var response = new byte[Math.Max(responseBufferLength, endpoint.GetMaxInputReportLength())];
+            int bytesRead = activeStream.Read(response);
+            return response[..bytesRead];
+        });
+    }
 
-        var response = new byte[Math.Max(responseBufferLength, endpoint.GetMaxInputReportLength())];
-        int bytesRead = stream.Read(response);
-        return response[..bytesRead];
+    public void Dispose()
+    {
+        lock (syncRoot)
+        {
+            if (disposed)
+                return;
+
+            disposed = true;
+            InvalidateStream();
+        }
+    }
+
+    private void Execute(Action<HidStream> operation) =>
+        Execute(activeStream =>
+        {
+            operation(activeStream);
+            return true;
+        });
+
+    private T Execute<T>(Func<HidStream, T> operation)
+    {
+        lock (syncRoot)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            try
+            {
+                return operation(GetOrOpenStream());
+            }
+            catch (Exception exception) when (exception is IOException or TimeoutException)
+            {
+                InvalidateStream();
+                throw;
+            }
+        }
+    }
+
+    private HidStream GetOrOpenStream()
+    {
+        if (stream is not null)
+            return stream;
+
+        HidStream openedStream = endpoint.Open();
+        try
+        {
+            openedStream.ReadTimeout = timeoutMilliseconds;
+            openedStream.WriteTimeout = timeoutMilliseconds;
+            stream = openedStream;
+            return openedStream;
+        }
+        catch
+        {
+            openedStream.Dispose();
+            throw;
+        }
+    }
+
+    private void InvalidateStream()
+    {
+        HidStream? invalidStream = stream;
+        stream = null;
+        invalidStream?.Dispose();
+    }
+
+    private void EnsureNotDisposed()
+    {
+        lock (syncRoot)
+            ObjectDisposedException.ThrowIf(disposed, this);
     }
 
     private static byte[] CreateReport(

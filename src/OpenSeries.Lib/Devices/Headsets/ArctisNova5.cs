@@ -33,11 +33,10 @@ internal sealed class ArctisNova5Definition : IDeviceDefinition
     public ISteelSeriesDevice Connect(HidDevice endpoint, DeviceIdentity identity) => new ArctisNova5(endpoint, identity);
 }
 
-internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) : HeadsetDeviceBase(identity)
+internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) : HeadsetDeviceBase(endpoint, identity)
 {
     private static readonly ushort[] EqualizerFrequencies = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
-    private const int IoTimeoutMilliseconds = 2_000;
     private const int MessageSize = 64;
     private const int StatusBufferSize = 128;
     private const int MinimumStatusLength = 16;
@@ -51,7 +50,6 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
     private const ushort DisabledParametricFrequency = 20_001;
     private const float ParametricQMinimum = 0.2f;
     private const float ParametricQMaximum = 10;
-    private readonly HidTransport transport = new(endpoint, IoTimeoutMilliseconds);
 
     public override string Name => "SteelSeries Arctis Nova 5/5X";
 
@@ -295,19 +293,15 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
 
     private byte[] ReadDeviceStatus(int minimumLength)
     {
-        using HidStream stream = transport.OpenStream();
-        stream.Write([0x00, 0xb0]);
-
-        var response = new byte[Math.Max(StatusBufferSize, endpoint.GetMaxInputReportLength())];
-        int bytesRead = stream.Read(response);
-        int statusOffset = bytesRead >= 2 && response[0] == 0x00 && response[1] == 0xb0 ? 1 : 0;
-        int statusLength = bytesRead - statusOffset;
+        byte[] response = Transport.WriteOutputAndRead([0x00, 0xb0], StatusBufferSize);
+        int statusOffset = response.Length >= 2 && response[0] == 0x00 && response[1] == 0xb0 ? 1 : 0;
+        int statusLength = response.Length - statusOffset;
         if (statusLength < minimumLength)
         {
-            throw new InvalidDataException($"Device returned a short status response ({bytesRead} bytes).");
+            throw new InvalidDataException($"Device returned a short status response ({response.Length} bytes).");
         }
 
-        return response[statusOffset..bytesRead];
+        return response[statusOffset..];
     }
 
     private void SaveState()
@@ -316,7 +310,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         SendCommand([0x00, 0x35, 0x01]);
     }
 
-    private void SendCommand(ReadOnlySpan<byte> command) => transport.WriteOutput(command, minimumReportLength: MessageSize);
+    private void SendCommand(ReadOnlySpan<byte> command) => Transport.WriteOutput(command, minimumReportLength: MessageSize);
 
     private static int Map(
         int value,

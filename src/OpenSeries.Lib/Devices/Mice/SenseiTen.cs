@@ -34,11 +34,9 @@ internal sealed class SenseiTenDefinition : IDeviceDefinition
     public ISteelSeriesDevice Connect(HidDevice endpoint, DeviceIdentity identity) => new SenseiTen(endpoint, identity);
 }
 
-internal sealed class SenseiTen(HidDevice endpoint, DeviceIdentity identity) : MouseDeviceBase(identity)
+internal sealed class SenseiTen(HidDevice endpoint, DeviceIdentity identity) : MouseDeviceBase(endpoint, identity)
 {
-    private const int IoTimeoutMilliseconds = 2_000;
     private const int CommandDelayMilliseconds = 50;
-    private readonly HidTransport transport = new(endpoint, IoTimeoutMilliseconds);
 
     public override string Name => ProductId == 0x1834
         ? "SteelSeries Sensei Ten CS:GO Neon Rider Edition"
@@ -137,11 +135,11 @@ internal sealed class SenseiTen(HidDevice endpoint, DeviceIdentity identity) : M
 
     private void SendFeatureAndSave(ReadOnlySpan<byte> command)
     {
-        transport.WriteFeature(command, commandOffset: 1);
+        Transport.WriteFeature(command, commandOffset: 1);
 
         Thread.Sleep(CommandDelayMilliseconds);
         SendOutput([0x59, 0x00]);
     }
 
-    private void SendOutput(ReadOnlySpan<byte> command) => transport.WriteOutput(command, commandOffset: 1);
+    private void SendOutput(ReadOnlySpan<byte> command) => Transport.WriteOutput(command, commandOffset: 1);
 }

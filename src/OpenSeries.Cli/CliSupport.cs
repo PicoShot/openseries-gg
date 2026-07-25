@@ -9,26 +9,27 @@ namespace OpenSeries.Cli;
 
 internal static class CliSupport
 {
-    internal static IReadOnlyList<ISteelSeriesDevice> Discover(bool quiet = false)
+    internal static DeviceSelection<ISteelSeriesDevice> Discover(bool quiet = false)
     {
         try
         {
-            return new DeviceManager().GetConnectedDevices();
+            IReadOnlyList<ISteelSeriesDevice> devices = new DeviceManager().GetConnectedDevices();
+            return new DeviceSelection<ISteelSeriesDevice>(devices, new DeviceDisposer(devices));
         }
         catch (Exception exception)
         {
             if (!quiet) Error(null, exception);
-            return [];
+            return DeviceSelection<ISteelSeriesDevice>.Empty;
         }
     }
 
-    internal static IReadOnlyList<IHeadsetDevice> SelectHeadsets(
+    internal static DeviceSelection<IHeadsetDevice> SelectHeadsets(
         string? id,
         DeviceFeatures required,
         bool quiet,
         out int exitCode)
     {
-        IReadOnlyList<ISteelSeriesDevice> all = Discover(quiet);
+        DeviceSelection<ISteelSeriesDevice> all = Discover(quiet);
         IEnumerable<ISteelSeriesDevice> selected = all;
         if (!string.IsNullOrWhiteSpace(id))
         {
@@ -39,13 +40,15 @@ internal static class CliSupport
             {
                 if (!quiet) AnsiConsole.MarkupLine($"[red]No device has ID[/] {Markup.Escape(id)}.");
                 exitCode = 1;
-                return [];
+                all.Dispose();
+                return DeviceSelection<IHeadsetDevice>.Empty;
             }
             if (matches.Length > 1)
             {
                 if (!quiet) AnsiConsole.MarkupLine($"[red]Device ID is ambiguous:[/] {Markup.Escape(id)}.");
                 exitCode = 1;
-                return [];
+                all.Dispose();
+                return DeviceSelection<IHeadsetDevice>.Empty;
             }
             selected = matches;
         }
@@ -57,19 +60,20 @@ internal static class CliSupport
         {
             if (!quiet) AnsiConsole.MarkupLine("[red]No compatible connected headset was found.[/]");
             exitCode = 1;
-            return [];
+            all.Dispose();
+            return DeviceSelection<IHeadsetDevice>.Empty;
         }
         exitCode = 0;
-        return headsets;
+        return new DeviceSelection<IHeadsetDevice>(headsets, all);
     }
 
-    internal static IReadOnlyList<IMouseDevice> SelectMice(
+    internal static DeviceSelection<IMouseDevice> SelectMice(
         string? id,
         DeviceFeatures required,
         bool quiet,
         out int exitCode)
     {
-        IReadOnlyList<ISteelSeriesDevice> all = Discover(quiet);
+        DeviceSelection<ISteelSeriesDevice> all = Discover(quiet);
         IEnumerable<ISteelSeriesDevice> selected = all;
         if (!string.IsNullOrWhiteSpace(id))
         {
@@ -83,7 +87,8 @@ internal static class CliSupport
                         ? $"[red]No device has ID[/] {Markup.Escape(id)}."
                         : $"[red]Device ID is ambiguous:[/] {Markup.Escape(id)}.");
                 exitCode = 1;
-                return [];
+                all.Dispose();
+                return DeviceSelection<IMouseDevice>.Empty;
             }
             selected = matches;
         }
@@ -95,10 +100,11 @@ internal static class CliSupport
         {
             if (!quiet) AnsiConsole.MarkupLine("[red]No compatible connected mouse was found.[/]");
             exitCode = 1;
-            return [];
+            all.Dispose();
+            return DeviceSelection<IMouseDevice>.Empty;
         }
         exitCode = 0;
-        return mice;
+        return new DeviceSelection<IMouseDevice>(mice, all);
     }
 
     internal static void Json<T>(T value, JsonTypeInfo<T> typeInfo) =>
@@ -129,6 +135,28 @@ internal static class CliSupport
         int filledCells = level / 10;
         string bar = new string('=', filledCells) + new string(' ', 10 - filledCells);
         return $"{Markup.Escape(chargingState)} [[{bar}]] {level} %";
+    }
+}
+
+internal sealed class DeviceSelection<T>(
+    IReadOnlyList<T> devices,
+    IDisposable? owner) : IReadOnlyList<T>, IDisposable
+{
+    internal static DeviceSelection<T> Empty { get; } = new([], null);
+
+    public int Count => devices.Count;
+    public T this[int index] => devices[index];
+    public IEnumerator<T> GetEnumerator() => devices.GetEnumerator();
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    public void Dispose() => owner?.Dispose();
+}
+
+internal sealed class DeviceDisposer(IEnumerable<ISteelSeriesDevice> devices) : IDisposable
+{
+    public void Dispose()
+    {
+        foreach (ISteelSeriesDevice device in devices)
+            device.Dispose();
     }
 }
 

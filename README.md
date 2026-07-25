@@ -106,13 +106,16 @@ var manager = new DeviceManager();
 
 foreach (ISteelSeriesDevice device in manager.GetConnectedDevices())
 {
-    Console.WriteLine($"{device.Name}: {device.Id}");
-
-    if (device is IHeadsetDevice headset &&
-        device.SupportedFeatures.HasFlag(Features.BatteryStatus))
+    using (device)
     {
-        BatteryInfo battery = headset.GetBattery();
-        Console.WriteLine($"{battery.LevelPercentage}% ({battery.Status})");
+        Console.WriteLine($"{device.Name}: {device.Id}");
+
+        if (device is IHeadsetDevice headset &&
+            device.SupportedFeatures.HasFlag(Features.BatteryStatus))
+        {
+            BatteryInfo battery = headset.GetBattery();
+            Console.WriteLine($"{battery.LevelPercentage}% ({battery.Status})");
+        }
     }
 }
 ```

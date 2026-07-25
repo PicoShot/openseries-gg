@@ -36,7 +36,7 @@ internal sealed class Aerox3Definition : IDeviceDefinition
     public ISteelSeriesDevice Connect(HidDevice endpoint, DeviceIdentity identity) => new Aerox3(endpoint, identity);
 }
 
-internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : MouseDeviceBase(identity)
+internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : MouseDeviceBase(endpoint, identity)
 {
     private static readonly int[] ReceiverProductIds = [0x1838, 0x1878];
     private static readonly int[] WirelessProductIds = [0x1838, 0x183a, 0x1878, 0x187a];
@@ -61,10 +61,8 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : Mous
         0x8b, 0x91, 0x97, 0x9d, 0xa3, 0xa9, 0xaf, 0xbe, 0xc1, 0xc8, 0xce, 0xd4
     ];
 
-    private const int IoTimeoutMilliseconds = 2_000;
     private const int ReceiverResponseLength = 64;
     private const int CommandDelayMilliseconds = 50;
-    private readonly HidTransport transport = new(endpoint, IoTimeoutMilliseconds);
 
     private bool IsReceiver => ReceiverProductIds.Contains(ProductId);
     private bool IsWirelessModel => WirelessProductIds.Contains(ProductId);
@@ -215,11 +213,11 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : Mous
 
         if (!readResponse)
         {
-            transport.WriteOutput(framedCommand, commandOffset: 1);
+            Transport.WriteOutput(framedCommand, commandOffset: 1);
             return [];
         }
 
-        return transport.WriteOutputAndRead(
+        return Transport.WriteOutputAndRead(
             framedCommand,
             ReceiverResponseLength,
             commandOffset: 1);

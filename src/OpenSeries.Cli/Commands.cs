@@ -25,7 +25,7 @@ internal sealed class BatteryCommand : Command<DeviceJsonSettings>
 {
     protected override int Execute(CommandContext context, DeviceJsonSettings settings, CancellationToken cancellationToken)
     {
-        IReadOnlyList<IHeadsetDevice> devices = CliSupport.SelectHeadsets(
+        using DeviceSelection<IHeadsetDevice> devices = CliSupport.SelectHeadsets(
             settings.Device, DeviceFeatures.BatteryStatus, settings.Json, out int exitCode);
         var results = new List<BatteryJson>();
         foreach (IHeadsetDevice device in devices)
@@ -56,7 +56,7 @@ internal sealed class ChatMixCommand : Command<DeviceJsonSettings>
 {
     protected override int Execute(CommandContext context, DeviceJsonSettings settings, CancellationToken cancellationToken)
     {
-        IReadOnlyList<IHeadsetDevice> devices = CliSupport.SelectHeadsets(
+        using DeviceSelection<IHeadsetDevice> devices = CliSupport.SelectHeadsets(
             settings.Device, DeviceFeatures.Chatmix, settings.Json, out int exitCode);
         var results = new List<ChatMixJson>();
         foreach (IHeadsetDevice device in devices)
@@ -86,7 +86,7 @@ internal sealed class MouseBatteryCommand : Command<DeviceJsonSettings>
 {
     protected override int Execute(CommandContext context, DeviceJsonSettings settings, CancellationToken cancellationToken)
     {
-        IReadOnlyList<IMouseDevice> devices = CliSupport.SelectMice(
+        using DeviceSelection<IMouseDevice> devices = CliSupport.SelectMice(
             settings.Device, DeviceFeatures.BatteryStatus, settings.Json, out int exitCode);
         var results = new List<BatteryJson>();
         foreach (IMouseDevice device in devices)
@@ -503,7 +503,7 @@ internal static class Setters
         Action<IHeadsetDevice> operation,
         string success)
     {
-        IReadOnlyList<IHeadsetDevice> devices = CliSupport.SelectHeadsets(selector, feature, false, out int exitCode);
+        using DeviceSelection<IHeadsetDevice> devices = CliSupport.SelectHeadsets(selector, feature, false, out int exitCode);
         foreach (IHeadsetDevice device in devices)
         {
             try
@@ -529,7 +529,7 @@ internal static class MouseSetters
         Action<IMouseDevice> operation,
         string success)
     {
-        IReadOnlyList<IMouseDevice> devices = CliSupport.SelectMice(selector, feature, false, out int exitCode);
+        using DeviceSelection<IMouseDevice> devices = CliSupport.SelectMice(selector, feature, false, out int exitCode);
         foreach (IMouseDevice device in devices)
         {
             try

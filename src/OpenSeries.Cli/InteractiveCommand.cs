@@ -15,7 +15,7 @@ internal sealed class InteractiveCommand : Command<InteractiveSettings>
 
     protected override int Execute(CommandContext context, InteractiveSettings settings, CancellationToken cancellationToken)
     {
-        IReadOnlyList<ISteelSeriesDevice> devices = CliSupport.Discover();
+        using DeviceSelection<ISteelSeriesDevice> devices = CliSupport.Discover();
         if (devices.Count == 0)
         {
             AnsiConsole.MarkupLine("[red]No supported SteelSeries device was found.[/]");
