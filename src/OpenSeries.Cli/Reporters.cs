@@ -107,13 +107,20 @@ internal static class Reporters
                 grid.AddRow("[bold]Device ID[/]", Markup.Escape(status.Id));
                 grid.AddRow("[bold]Model[/]", Markup.Escape(status.Model));
                 grid.AddRow("[bold]PID[/]", status.ProductId);
-                grid.AddRow("[bold]Battery[/]", status.Battery is null
-                    ? "Capability unavailable"
-                    : CliSupport.BatteryDisplay(
-                        status.Battery.LevelPercentage!.Value,
-                        status.Battery.ChargingState!));
-                grid.AddRow("[bold]ChatMix[/]", status.ChatMix is null ? "Capability unavailable" :
-                    $"{status.ChatMix.Level}/128 (game {status.ChatMix.GameVolumePercentage}%, chat {status.ChatMix.ChatVolumePercentage}%)");
+                if (devices[index].SupportedFeatures.HasFlag(DeviceFeatures.BatteryStatus))
+                {
+                    grid.AddRow("[bold]Battery[/]", status.Battery is null
+                        ? "Unable to read"
+                        : CliSupport.BatteryDisplay(
+                            status.Battery.LevelPercentage!.Value,
+                            status.Battery.ChargingState!));
+                }
+                if (devices[index].SupportedFeatures.HasFlag(DeviceFeatures.Chatmix))
+                {
+                    grid.AddRow("[bold]ChatMix[/]", status.ChatMix is null
+                        ? "Unable to read"
+                        : $"{status.ChatMix.Level}/128 (game {status.ChatMix.GameVolumePercentage}%, chat {status.ChatMix.ChatVolumePercentage}%)");
+                }
                 grid.AddRow("[bold]Capabilities[/]", Markup.Escape(string.Join(", ", status.Capabilities)));
                 if (index < statuses.Count - 1)
                     grid.AddEmptyRow();

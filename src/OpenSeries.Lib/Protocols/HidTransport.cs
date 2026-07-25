@@ -11,16 +11,14 @@ internal sealed class HidTransport(HidDevice endpoint, int timeoutMilliseconds) 
     internal void WriteOutput(ReadOnlySpan<byte> command, int commandOffset = 0, int minimumReportLength = 0)
     {
         EnsureNotDisposed();
-        byte[] report = CreateReport(
-            command, commandOffset, endpoint.GetMaxOutputReportLength(), minimumReportLength, "Output");
+        byte[] report = CreateReport(command, commandOffset, endpoint.GetMaxOutputReportLength(), minimumReportLength, "Output");
         Execute(activeStream => activeStream.Write(report));
     }
 
     internal void WriteFeature(ReadOnlySpan<byte> command, int commandOffset = 0, int minimumReportLength = 0)
     {
         EnsureNotDisposed();
-        byte[] report = CreateReport(
-            command, commandOffset, endpoint.GetMaxFeatureReportLength(), minimumReportLength, "Feature");
+        byte[] report = CreateReport(command, commandOffset, endpoint.GetMaxFeatureReportLength(), minimumReportLength, "Feature");
         Execute(activeStream => activeStream.SetFeature(report));
     }
 
@@ -31,8 +29,7 @@ internal sealed class HidTransport(HidDevice endpoint, int timeoutMilliseconds) 
         int minimumReportLength = 0)
     {
         EnsureNotDisposed();
-        byte[] report = CreateReport(
-            command, commandOffset, endpoint.GetMaxOutputReportLength(), minimumReportLength, "Output");
+        byte[] report = CreateReport(command, commandOffset, endpoint.GetMaxOutputReportLength(), minimumReportLength, "Output");
         return Execute(activeStream =>
         {
             activeStream.Write(report);
