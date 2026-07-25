@@ -43,7 +43,7 @@ internal sealed class ArctisNova7Definition : IDeviceDefinition
     public ISteelSeriesDevice Connect(HidDevice endpoint, DeviceIdentity identity) => new ArctisNova7(endpoint, identity);
 }
 
-internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) : IHeadsetDevice
+internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) : HeadsetDeviceBase(identity)
 {
     private static readonly int[] DiscreteBatteryProductIds = [0x2202, 0x2206, 0x223a, 0x227a, 0x22a4];
 
@@ -57,11 +57,9 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
     private const byte EqualizerBaseline = 0x14;
     private readonly HidTransport transport = new(endpoint, IoTimeoutMilliseconds);
 
-    public string Id => identity.Id;
-    public string Name => "SteelSeries Arctis Nova 7";
-    public int ProductId => identity.ProductId;
+    public override string Name => "SteelSeries Arctis Nova 7";
 
-    public Features SupportedFeatures =>
+    public override Features SupportedFeatures =>
         Features.Sidetone |
         Features.BatteryStatus |
         Features.Chatmix |
@@ -74,7 +72,7 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
         Features.BluetoothWhenPoweredOn |
         Features.BluetoothCallVolume;
 
-    public EqualizerInfo EqualizerInfo { get; } = new
+    public override EqualizerInfo EqualizerInfo { get; } = new
     (
         EqualizerBands,
         EqualizerMinimum,
@@ -82,16 +80,14 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
         EqualizerStep
     );
 
-    public IReadOnlyList<EqualizerPreset> EqualizerPresets { get; } =
+    public override IReadOnlyList<EqualizerPreset> EqualizerPresets { get; } =
     [
         new("Flat", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
         new("Bass", [3.5f, 5.5f, 4, 1, -1.5f, -1.5f, -1, -1, -1, -1]),
         new("Focus", [-5, -3.5f, -1, -3.5f, -2.5f, 4, 6, -3.5f, 0, 0]),
         new("Smiley", [3, 3.5f, 1.5f, -1.5f, -4, -4, -2.5f, 1.5f, 3, 4])
     ];
-    public ParametricEqualizerInfo? ParametricEqualizerInfo => null;
-
-    public BatteryInfo GetBattery()
+    public override BatteryInfo GetBattery()
     {
         byte[] data = ReadDeviceStatus();
         if (data[3] == 0x00)
@@ -107,7 +103,7 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
         return new BatteryInfo((ushort)level, status, data);
     }
 
-    public ChatmixInfo GetChatmix()
+    public override ChatmixInfo GetChatmix()
     {
         byte[] data = ReadDeviceStatus();
         int gameRaw = data[4];
@@ -121,7 +117,7 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
             (ushort)Math.Clamp(chatRaw, 0, 100));
     }
 
-    public void SetSidetone(byte level)
+    public override void SetSidetone(byte level)
     {
         if (level > 128)
         {
@@ -138,7 +134,7 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
         SendCommand([0x00, 0x39, deviceLevel]);
     }
 
-    public void SetInactiveTime(ushort minutes)
+    public override void SetInactiveTime(ushort minutes)
     {
         if (minutes > 90)
         {
@@ -148,7 +144,7 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
         SendCommand([0x00, 0xa3, (byte)minutes]);
     }
 
-    public void SetEqualizerPreset(byte preset)
+    public override void SetEqualizerPreset(byte preset)
     {
         if (preset >= EqualizerPresets.Count)
         {
@@ -158,7 +154,7 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
         SetEqualizer(EqualizerPresets[preset].Bands);
     }
 
-    public void SetEqualizer(IReadOnlyList<float> bands)
+    public override void SetEqualizer(IReadOnlyList<float> bands)
     {
         ArgumentNullException.ThrowIfNull(bands);
         if (bands.Count != EqualizerBands)
@@ -190,7 +186,7 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
         SendCommand(command);
     }
 
-    public void SetMicrophoneVolume(byte volume)
+    public override void SetMicrophoneVolume(byte volume)
     {
         if (volume > 128)
         {
@@ -203,7 +199,7 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
         SendCommand([0x00, 0x37, deviceLevel]);
     }
 
-    public void SetMicrophoneMuteLedBrightness(byte brightness)
+    public override void SetMicrophoneMuteLedBrightness(byte brightness)
     {
         if (brightness > 3)
         {
@@ -215,20 +211,17 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
         SendCommand([0x00, 0xae, brightness]);
     }
 
-    public void SetVolumeLimiter(bool enabled) =>
+    public override void SetVolumeLimiter(bool enabled) =>
         SendCommand([0x00, 0x3a, enabled ? (byte)0x01 : (byte)0x00]);
 
-    public void SetParametricEqualizer(IReadOnlyList<ParametricEqualizerBand> bands) =>
-        throw new NotSupportedException($"{Name} does not support a parametric equalizer.");
-
-    public void SetBluetoothWhenPoweredOn(bool enabled)
+    public override void SetBluetoothWhenPoweredOn(bool enabled)
     {
         SendCommand([0x00, 0xb2, enabled ? (byte)0x01 : (byte)0x00]);
         // Nova 7 persists this setting with a distinct 0x06 report prefix.
         SendCommand([0x06, 0x09]);
     }
 
-    public void SetBluetoothCallVolume(BluetoothCallVolumeMode mode)
+    public override void SetBluetoothCallVolume(BluetoothCallVolumeMode mode)
     {
         if (!Enum.IsDefined(mode))
         {

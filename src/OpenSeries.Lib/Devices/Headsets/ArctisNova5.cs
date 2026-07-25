@@ -33,7 +33,7 @@ internal sealed class ArctisNova5Definition : IDeviceDefinition
     public ISteelSeriesDevice Connect(HidDevice endpoint, DeviceIdentity identity) => new ArctisNova5(endpoint, identity);
 }
 
-internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) : IHeadsetDevice
+internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) : HeadsetDeviceBase(identity)
 {
     private static readonly ushort[] EqualizerFrequencies = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
@@ -53,11 +53,9 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
     private const float ParametricQMaximum = 10;
     private readonly HidTransport transport = new(endpoint, IoTimeoutMilliseconds);
 
-    public string Id => identity.Id;
-    public string Name => "SteelSeries Arctis Nova 5/5X";
-    public int ProductId => identity.ProductId;
+    public override string Name => "SteelSeries Arctis Nova 5/5X";
 
-    public Features SupportedFeatures =>
+    public override Features SupportedFeatures =>
         Features.Sidetone |
         Features.BatteryStatus |
         Features.Chatmix |
@@ -69,7 +67,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         Features.VolumeLimiter |
         Features.ParametricEqualizer;
 
-    public EqualizerInfo EqualizerInfo { get; } = new
+    public override EqualizerInfo EqualizerInfo { get; } = new
     (
         EqualizerBands,
         EqualizerMinimum,
@@ -77,7 +75,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         EqualizerStep
     );
 
-    public IReadOnlyList<EqualizerPreset> EqualizerPresets { get; } =
+    public override IReadOnlyList<EqualizerPreset> EqualizerPresets { get; } =
     [
         new("Flat", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
         new("Bass", [3.5f, 5.5f, 4, 1, -1.5f, -1.5f, -1, -1, -1, -1]),
@@ -85,7 +83,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         new("Smiley", [3, 3.5f, 1.5f, -1.5f, -4, -4, -2.5f, 1.5f, 3, 4])
     ];
 
-    public ParametricEqualizerInfo ParametricEqualizerInfo { get; } = new(
+    public override ParametricEqualizerInfo ParametricEqualizerInfo { get; } = new(
         EqualizerBands,
         ParametricFrequencyMinimum,
         ParametricFrequencyMaximum,
@@ -96,7 +94,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         ParametricQMaximum,
         Enum.GetValues<EqualizerFilterType>());
 
-    public BatteryInfo GetBattery()
+    public override BatteryInfo GetBattery()
     {
         byte[] data = ReadDeviceStatus(MinimumStatusLength);
         if (data[1] == 0x02)
@@ -114,7 +112,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         return new BatteryInfo((ushort)level, status, data);
     }
 
-    public ChatmixInfo GetChatmix()
+    public override ChatmixInfo GetChatmix()
     {
         byte[] data = ReadDeviceStatus(7);
         int gameRaw = data[5];
@@ -128,7 +126,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
             (ushort)Math.Clamp(chatRaw, 0, 100));
     }
 
-    public void SetSidetone(byte level)
+    public override void SetSidetone(byte level)
     {
         if (level > 128)
         {
@@ -141,7 +139,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         SaveState();
     }
 
-    public void SetInactiveTime(ushort minutes)
+    public override void SetInactiveTime(ushort minutes)
     {
         if (minutes > 90)
         {
@@ -151,7 +149,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         SendCommand([0x00, 0xa3, (byte)minutes]);
     }
 
-    public void SetEqualizerPreset(byte preset)
+    public override void SetEqualizerPreset(byte preset)
     {
         if (preset >= EqualizerPresets.Count)
         {
@@ -161,7 +159,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         SetEqualizer(EqualizerPresets[preset].Bands);
     }
 
-    public void SetEqualizer(IReadOnlyList<float> bands)
+    public override void SetEqualizer(IReadOnlyList<float> bands)
     {
         ArgumentNullException.ThrowIfNull(bands);
         if (bands.Count != EqualizerBands)
@@ -207,7 +205,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         SaveState();
     }
 
-    public void SetMicrophoneVolume(byte volume)
+    public override void SetMicrophoneVolume(byte volume)
     {
         if (volume > 128)
         {
@@ -221,7 +219,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         SaveState();
     }
 
-    public void SetMicrophoneMuteLedBrightness(byte brightness)
+    public override void SetMicrophoneMuteLedBrightness(byte brightness)
     {
         byte deviceBrightness = brightness switch
         {
@@ -237,13 +235,13 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         SaveState();
     }
 
-    public void SetVolumeLimiter(bool enabled)
+    public override void SetVolumeLimiter(bool enabled)
     {
         SendCommand([0x00, 0x27, enabled ? (byte)0x01 : (byte)0x00]);
         SaveState();
     }
 
-    public void SetParametricEqualizer(IReadOnlyList<ParametricEqualizerBand> bands)
+    public override void SetParametricEqualizer(IReadOnlyList<ParametricEqualizerBand> bands)
     {
         ArgumentNullException.ThrowIfNull(bands);
         if (bands.Count is < 1 or > EqualizerBands)
@@ -294,12 +292,6 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         SendCommand(command);
         SaveState();
     }
-
-    public void SetBluetoothWhenPoweredOn(bool enabled) =>
-        throw new NotSupportedException($"{Name} does not support Bluetooth power-on control.");
-
-    public void SetBluetoothCallVolume(BluetoothCallVolumeMode mode) =>
-        throw new NotSupportedException($"{Name} does not support Bluetooth call volume control.");
 
     private byte[] ReadDeviceStatus(int minimumLength)
     {

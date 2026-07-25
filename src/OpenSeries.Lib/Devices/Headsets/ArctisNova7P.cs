@@ -33,7 +33,7 @@ internal sealed class ArctisNova7PDefinition : IDeviceDefinition
     public ISteelSeriesDevice Connect(HidDevice endpoint, DeviceIdentity identity) => new ArctisNova7P(endpoint, identity);
 }
 
-internal sealed class ArctisNova7P(HidDevice endpoint, DeviceIdentity identity) : IHeadsetDevice
+internal sealed class ArctisNova7P(HidDevice endpoint, DeviceIdentity identity) : HeadsetDeviceBase(identity)
 {
     private const int DiscreteBatteryProductId = 0x220a;
     private const int IoTimeoutMilliseconds = 2_000;
@@ -46,17 +46,15 @@ internal sealed class ArctisNova7P(HidDevice endpoint, DeviceIdentity identity) 
     private const byte EqualizerBaseline = 0x14;
     private readonly HidTransport transport = new(endpoint, IoTimeoutMilliseconds);
 
-    public string Id => identity.Id;
-    public string Name => "SteelSeries Arctis Nova 7P";
-    public int ProductId => identity.ProductId;
+    public override string Name => "SteelSeries Arctis Nova 7P";
 
-    public Features SupportedFeatures =>
+    public override Features SupportedFeatures =>
         Features.BatteryStatus |
         Features.InactiveTime |
         Features.Equalizer |
         Features.EqualizerPreset;
 
-    public EqualizerInfo EqualizerInfo { get; } = new
+    public override EqualizerInfo EqualizerInfo { get; } = new
     (
         EqualizerBands,
         EqualizerMinimum,
@@ -64,16 +62,14 @@ internal sealed class ArctisNova7P(HidDevice endpoint, DeviceIdentity identity) 
         EqualizerStep
     );
 
-    public IReadOnlyList<EqualizerPreset> EqualizerPresets { get; } =
+    public override IReadOnlyList<EqualizerPreset> EqualizerPresets { get; } =
     [
         new("Flat", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
         new("Bass", [3.5f, 5.5f, 4, 1, -1.5f, -1.5f, -1, -1, -1, -1]),
         new("Focus", [-5, -3.5f, -1, -3.5f, -2.5f, 4, 6, -3.5f, 0, 0]),
         new("Smiley", [3, 3.5f, 1.5f, -1.5f, -4, -4, -2.5f, 1.5f, 3, 4])
     ];
-    public ParametricEqualizerInfo? ParametricEqualizerInfo => null;
-
-    public BatteryInfo GetBattery()
+    public override BatteryInfo GetBattery()
     {
         byte[] data = ReadDeviceStatus();
         if (data[3] == 0x00)
@@ -90,11 +86,7 @@ internal sealed class ArctisNova7P(HidDevice endpoint, DeviceIdentity identity) 
         return new BatteryInfo((ushort)level, status, data);
     }
 
-    public ChatmixInfo GetChatmix() => throw new NotSupportedException($"{Name} does not support ChatMix.");
-
-    public void SetSidetone(byte level) => throw new NotSupportedException($"{Name} does not support sidetone control.");
-
-    public void SetInactiveTime(ushort minutes)
+    public override void SetInactiveTime(ushort minutes)
     {
         if (minutes > 90)
         {
@@ -104,7 +96,7 @@ internal sealed class ArctisNova7P(HidDevice endpoint, DeviceIdentity identity) 
         SendCommand([0x00, 0xa3, (byte)minutes]);
     }
 
-    public void SetEqualizerPreset(byte preset)
+    public override void SetEqualizerPreset(byte preset)
     {
         if (preset >= EqualizerPresets.Count)
         {
@@ -114,7 +106,7 @@ internal sealed class ArctisNova7P(HidDevice endpoint, DeviceIdentity identity) 
         SetEqualizer(EqualizerPresets[preset].Bands);
     }
 
-    public void SetEqualizer(IReadOnlyList<float> bands)
+    public override void SetEqualizer(IReadOnlyList<float> bands)
     {
         ArgumentNullException.ThrowIfNull(bands);
         if (bands.Count != EqualizerBands)
@@ -145,24 +137,6 @@ internal sealed class ArctisNova7P(HidDevice endpoint, DeviceIdentity identity) 
         command[EqualizerBands + 2] = 0x00;
         SendCommand(command);
     }
-
-    public void SetMicrophoneVolume(byte volume) =>
-        throw new NotSupportedException($"{Name} does not support microphone volume control.");
-
-    public void SetMicrophoneMuteLedBrightness(byte brightness) =>
-        throw new NotSupportedException($"{Name} does not support microphone mute LED brightness control.");
-
-    public void SetVolumeLimiter(bool enabled) =>
-        throw new NotSupportedException($"{Name} does not support volume limiter control.");
-
-    public void SetParametricEqualizer(IReadOnlyList<ParametricEqualizerBand> bands) =>
-        throw new NotSupportedException($"{Name} does not support a parametric equalizer.");
-
-    public void SetBluetoothWhenPoweredOn(bool enabled) =>
-        throw new NotSupportedException($"{Name} does not support Bluetooth power-on control.");
-
-    public void SetBluetoothCallVolume(BluetoothCallVolumeMode mode) =>
-        throw new NotSupportedException($"{Name} does not support Bluetooth call volume control.");
 
     private byte[] ReadDeviceStatus()
     {
