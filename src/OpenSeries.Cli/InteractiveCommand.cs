@@ -141,6 +141,10 @@ internal sealed class InteractiveCommand : Command<InteractiveSettings>
                 table.AddRow("Microphone mute LED", "0=off, 1=low, 2=medium, 3=high");
             if (device.SupportedFeatures.HasFlag(DeviceFeatures.VolumeLimiter))
                 table.AddRow("Volume limiter", "On or off");
+            if (device.SupportedFeatures.HasFlag(DeviceFeatures.BluetoothWhenPoweredOn))
+                table.AddRow("Bluetooth at power-on", "On or off");
+            if (device.SupportedFeatures.HasFlag(DeviceFeatures.BluetoothCallVolume))
+                table.AddRow("Bluetooth call volume", "Unchanged, lower 12 dB, or mute game");
             if (device.SupportedFeatures.HasFlag(DeviceFeatures.EqualizerPreset))
                 table.AddRow("EQ presets", Markup.Escape(string.Join(", ", headset.EqualizerPresets.Select(preset => preset.Name))));
             if (device.SupportedFeatures.HasFlag(DeviceFeatures.Equalizer))
@@ -205,6 +209,20 @@ internal sealed class InteractiveCommand : Command<InteractiveSettings>
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.VolumeLimiter))
             operations["Set volume limiter"] = () =>
                 device.SetVolumeLimiter(AnsiConsole.Confirm("Enable the volume limiter?"));
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.BluetoothWhenPoweredOn))
+            operations["Set Bluetooth at power-on"] = () =>
+                device.SetBluetoothWhenPoweredOn(
+                    AnsiConsole.Confirm("Enable Bluetooth when the headset powers on?"));
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.BluetoothCallVolume))
+            operations["Set Bluetooth call volume"] = () =>
+            {
+                BluetoothCallVolumeMode mode = AnsiConsole.Prompt(
+                    new SelectionPrompt<BluetoothCallVolumeMode>()
+                        .Title("Bluetooth behavior during calls")
+                        .UseConverter(FormatBluetoothCallVolume)
+                        .AddChoices(Enum.GetValues<BluetoothCallVolumeMode>()));
+                device.SetBluetoothCallVolume(mode);
+            };
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.EqualizerPreset))
             operations["Apply equalizer preset"] = () =>
             {
@@ -317,6 +335,8 @@ internal sealed class InteractiveCommand : Command<InteractiveSettings>
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.MicrophoneVolume)) yield return "Microphone volume";
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.MicrophoneMuteLedBrightness)) yield return "Microphone mute LED";
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.VolumeLimiter)) yield return "Volume limiter";
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.BluetoothWhenPoweredOn)) yield return "Bluetooth power-on";
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.BluetoothCallVolume)) yield return "Bluetooth call volume";
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.EqualizerPreset)) yield return "EQ presets";
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.Equalizer)) yield return "Equalizer";
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.ParametricEqualizer)) yield return "Parametric EQ";
@@ -325,6 +345,14 @@ internal sealed class InteractiveCommand : Command<InteractiveSettings>
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.Illumination)) yield return "RGB";
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.SleepTimer)) yield return "Sleep timer";
     }
+
+    private static string FormatBluetoothCallVolume(BluetoothCallVolumeMode mode) => mode switch
+    {
+        BluetoothCallVolumeMode.Unchanged => "Leave game volume unchanged",
+        BluetoothCallVolumeMode.LowerBy12Decibels => "Lower game volume by 12 dB",
+        BluetoothCallVolumeMode.MuteGame => "Mute game audio",
+        _ => mode.ToString()
+    };
 }
 
 internal static class NumberExtensions

@@ -25,5 +25,7 @@ public enum Features
     MicrophoneVolume = 1 << 10,
     MicrophoneMuteLedBrightness = 1 << 11,
     VolumeLimiter = 1 << 12,
-    ParametricEqualizer = 1 << 13
+    ParametricEqualizer = 1 << 13,
+    BluetoothWhenPoweredOn = 1 << 14,
+    BluetoothCallVolume = 1 << 15
 }

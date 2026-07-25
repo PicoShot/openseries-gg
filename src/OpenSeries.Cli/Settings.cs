@@ -52,6 +52,18 @@ internal sealed class VolumeLimiterSettings : DeviceSettings
     public string State { get; init; } = "";
 }
 
+internal sealed class BluetoothPowerSettings : DeviceSettings
+{
+    [CommandArgument(0, "<STATE>")]
+    public string State { get; init; } = "";
+}
+
+internal sealed class BluetoothCallVolumeSettings : DeviceSettings
+{
+    [CommandArgument(0, "<MODE>")]
+    public string Mode { get; init; } = "";
+}
+
 internal sealed class PresetSettings : DeviceSettings
 {
     [CommandArgument(0, "<PRESET>")]

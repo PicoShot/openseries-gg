@@ -295,6 +295,12 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
         SaveState();
     }
 
+    public void SetBluetoothWhenPoweredOn(bool enabled) =>
+        throw new NotSupportedException($"{Name} does not support Bluetooth power-on control.");
+
+    public void SetBluetoothCallVolume(BluetoothCallVolumeMode mode) =>
+        throw new NotSupportedException($"{Name} does not support Bluetooth call volume control.");
+
     private byte[] ReadDeviceStatus(int minimumLength)
     {
         using HidStream stream = transport.OpenStream();

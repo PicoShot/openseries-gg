@@ -67,7 +67,12 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
         Features.Chatmix |
         Features.InactiveTime |
         Features.Equalizer |
-        Features.EqualizerPreset;
+        Features.EqualizerPreset |
+        Features.MicrophoneVolume |
+        Features.MicrophoneMuteLedBrightness |
+        Features.VolumeLimiter |
+        Features.BluetoothWhenPoweredOn |
+        Features.BluetoothCallVolume;
 
     public EqualizerInfo EqualizerInfo { get; } = new
     (
@@ -185,17 +190,53 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
         SendCommand(command);
     }
 
-    public void SetMicrophoneVolume(byte volume) =>
-        throw new NotSupportedException($"{Name} does not support microphone volume control.");
+    public void SetMicrophoneVolume(byte volume)
+    {
+        if (volume > 128)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(volume), "Microphone volume must be between 0 and 128.");
+        }
 
-    public void SetMicrophoneMuteLedBrightness(byte brightness) =>
-        throw new NotSupportedException($"{Name} does not support microphone mute LED brightness control.");
+        // Nova 7 exposes eight microphone levels, 0x00 through 0x07.
+        byte deviceLevel = (byte)Math.Min(volume / 16, 7);
+        SendCommand([0x00, 0x37, deviceLevel]);
+    }
+
+    public void SetMicrophoneMuteLedBrightness(byte brightness)
+    {
+        if (brightness > 3)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(brightness), "Microphone mute LED brightness must be between 0 and 3.");
+        }
+
+        // Unlike Nova 5, Nova 7 uses the logical 0-3 value directly.
+        SendCommand([0x00, 0xae, brightness]);
+    }
 
     public void SetVolumeLimiter(bool enabled) =>
-        throw new NotSupportedException($"{Name} does not support volume limiter control.");
+        SendCommand([0x00, 0x3a, enabled ? (byte)0x01 : (byte)0x00]);
 
     public void SetParametricEqualizer(IReadOnlyList<ParametricEqualizerBand> bands) =>
         throw new NotSupportedException($"{Name} does not support a parametric equalizer.");
+
+    public void SetBluetoothWhenPoweredOn(bool enabled)
+    {
+        SendCommand([0x00, 0xb2, enabled ? (byte)0x01 : (byte)0x00]);
+        // Nova 7 persists this setting with a distinct 0x06 report prefix.
+        SendCommand([0x06, 0x09]);
+    }
+
+    public void SetBluetoothCallVolume(BluetoothCallVolumeMode mode)
+    {
+        if (!Enum.IsDefined(mode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(mode), "Unknown Bluetooth call volume mode.");
+        }
+
+        SendCommand([0x00, 0xb3, (byte)mode]);
+    }
 
     private byte[] ReadDeviceStatus()
     {

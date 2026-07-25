@@ -16,6 +16,8 @@ public interface IHeadsetDevice : ISteelSeriesDevice
     void SetMicrophoneMuteLedBrightness(byte brightness);
     void SetVolumeLimiter(bool enabled);
     void SetParametricEqualizer(IReadOnlyList<ParametricEqualizerBand> bands);
+    void SetBluetoothWhenPoweredOn(bool enabled);
+    void SetBluetoothCallVolume(BluetoothCallVolumeMode mode);
 }
 
 public enum BatteryStatus
@@ -59,4 +61,11 @@ public enum EqualizerFilterType
     HighPass,
     LowShelf,
     HighShelf
+}
+
+public enum BluetoothCallVolumeMode
+{
+    Unchanged,
+    LowerBy12Decibels,
+    MuteGame
 }

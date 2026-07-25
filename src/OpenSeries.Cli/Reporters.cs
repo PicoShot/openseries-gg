@@ -143,6 +143,10 @@ internal static class Reporters
             values.Add("MicrophoneMuteLedBrightnessRange:0-3");
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.VolumeLimiter))
             values.Add("VolumeLimiter:on,off");
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.BluetoothWhenPoweredOn))
+            values.Add("BluetoothWhenPoweredOn:on,off");
+        if (device.SupportedFeatures.HasFlag(DeviceFeatures.BluetoothCallVolume))
+            values.Add("BluetoothCallVolume:unchanged,lower,mute-game");
         if (device is IHeadsetDevice headset4 &&
             device.SupportedFeatures.HasFlag(DeviceFeatures.ParametricEqualizer) &&
             headset4.ParametricEqualizerInfo is { } parametric)

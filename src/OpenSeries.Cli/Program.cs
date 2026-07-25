@@ -18,6 +18,11 @@ app.Configure(configuration =>
         headset.AddCommand<MicrophoneVolumeCommand>("microphone-volume");
         headset.AddCommand<MicrophoneMuteLedCommand>("microphone-mute-led");
         headset.AddCommand<VolumeLimiterCommand>("volume-limiter");
+        headset.AddBranch("bluetooth", bluetooth =>
+        {
+            bluetooth.AddCommand<BluetoothPowerCommand>("power-on");
+            bluetooth.AddCommand<BluetoothCallVolumeCommand>("call-volume");
+        });
         headset.AddBranch("equalizer", equalizer =>
         {
             equalizer.AddCommand<EqualizerPresetCommand>("preset");

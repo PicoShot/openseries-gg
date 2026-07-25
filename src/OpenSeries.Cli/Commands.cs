@@ -303,6 +303,60 @@ internal sealed class VolumeLimiterCommand : Command<VolumeLimiterSettings>
     }
 }
 
+[Description("Enable or disable Bluetooth when the headset powers on.")]
+internal sealed class BluetoothPowerCommand : Command<BluetoothPowerSettings>
+{
+    protected override int Execute(
+        CommandContext context,
+        BluetoothPowerSettings settings,
+        CancellationToken cancellationToken)
+    {
+        bool? enabled = settings.State.ToLowerInvariant() switch
+        {
+            "on" or "enabled" or "true" or "1" => true,
+            "off" or "disabled" or "false" or "0" => false,
+            _ => null
+        };
+        if (enabled is null)
+        {
+            AnsiConsole.MarkupLine("[red]Bluetooth power-on state must be on or off.[/]");
+            return 1;
+        }
+
+        return Setters.Apply(settings.Device, DeviceFeatures.BluetoothWhenPoweredOn,
+            headset => headset.SetBluetoothWhenPoweredOn(enabled.Value),
+            $"Bluetooth at power-on {(enabled.Value ? "enabled" : "disabled")}.");
+    }
+}
+
+[Description("Set Bluetooth call behavior (unchanged, lower, or mute-game).")]
+internal sealed class BluetoothCallVolumeCommand : Command<BluetoothCallVolumeSettings>
+{
+    protected override int Execute(
+        CommandContext context,
+        BluetoothCallVolumeSettings settings,
+        CancellationToken cancellationToken)
+    {
+        BluetoothCallVolumeMode? mode = settings.Mode.ToLowerInvariant() switch
+        {
+            "unchanged" or "none" or "0" => BluetoothCallVolumeMode.Unchanged,
+            "lower" or "lower-12db" or "1" => BluetoothCallVolumeMode.LowerBy12Decibels,
+            "mute" or "mute-game" or "2" => BluetoothCallVolumeMode.MuteGame,
+            _ => null
+        };
+        if (mode is null)
+        {
+            AnsiConsole.MarkupLine(
+                "[red]Bluetooth call-volume mode must be unchanged, lower, or mute-game.[/]");
+            return 1;
+        }
+
+        return Setters.Apply(settings.Device, DeviceFeatures.BluetoothCallVolume,
+            headset => headset.SetBluetoothCallVolume(mode.Value),
+            $"Bluetooth call-volume mode set to {settings.Mode}.");
+    }
+}
+
 [Description("Apply an equalizer preset by index or name.")]
 internal sealed class EqualizerPresetCommand : Command<PresetSettings>
 {

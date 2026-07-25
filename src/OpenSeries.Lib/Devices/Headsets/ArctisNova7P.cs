@@ -158,6 +158,12 @@ internal sealed class ArctisNova7P(HidDevice endpoint, DeviceIdentity identity) 
     public void SetParametricEqualizer(IReadOnlyList<ParametricEqualizerBand> bands) =>
         throw new NotSupportedException($"{Name} does not support a parametric equalizer.");
 
+    public void SetBluetoothWhenPoweredOn(bool enabled) =>
+        throw new NotSupportedException($"{Name} does not support Bluetooth power-on control.");
+
+    public void SetBluetoothCallVolume(BluetoothCallVolumeMode mode) =>
+        throw new NotSupportedException($"{Name} does not support Bluetooth call volume control.");
+
     private byte[] ReadDeviceStatus()
     {
         using HidStream stream = transport.OpenStream();

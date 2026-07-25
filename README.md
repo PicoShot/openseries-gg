@@ -25,7 +25,7 @@ terminal output for people and stable JSON output for scripts.
 | --------------------------- | ------- | :-----: | :------: | :-----------: | :-------: | :--------: | :---------------: |
 | Arctis 7+ variants          | Yes     |   Yes   |   Yes    |      Yes      |    Yes    |    Yes     |        N/A        |
 | Arctis Nova 5 / 5X          | Yes     |   Yes   |   Yes    |      Yes      |    Yes    |    Yes     |        Yes        |
-| Arctis Nova 7 / 7X variants | Yes     |   Yes   |   Yes    |      Yes      |    Yes    |    Yes     |        N/A        |
+| Arctis Nova 7 / 7X variants | Yes     |   Yes   |   Yes    |      Yes      |    Yes    |    Yes     |        Yes        |
 | Arctis Nova 7P / 7P v2      | Yes     |   No    |    No    |      Yes      |    Yes    |    Yes     |        N/A        |
 
 ### Mice
@@ -83,6 +83,8 @@ openseries headset microphone-volume 96
 openseries headset microphone-mute-led 2
 openseries headset volume-limiter on
 openseries headset equalizer parametric "32:3.5:1.414:low-shelf,1000:0:1.0:peaking"
+openseries headset bluetooth power-on on
+openseries headset bluetooth call-volume lower
 
 # mouse example
 openseries mouse battery
