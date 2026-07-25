@@ -45,7 +45,8 @@ internal sealed class BatteryCommand : Command<DeviceJsonSettings>
                 if (!settings.Json) CliSupport.Error(device, exception);
             }
         }
-        if (settings.Json) CliSupport.Json(results);
+        if (settings.Json)
+            CliSupport.Json(results.ToArray(), CliJsonContext.Default.BatteryJsonArray);
         return exitCode;
     }
 }
@@ -74,7 +75,8 @@ internal sealed class ChatMixCommand : Command<DeviceJsonSettings>
                 if (!settings.Json) CliSupport.Error(device, exception);
             }
         }
-        if (settings.Json) CliSupport.Json(results);
+        if (settings.Json)
+            CliSupport.Json(results.ToArray(), CliJsonContext.Default.ChatMixJsonArray);
         return exitCode;
     }
 }
@@ -104,7 +106,8 @@ internal sealed class MouseBatteryCommand : Command<DeviceJsonSettings>
                 if (!settings.Json) CliSupport.Error(device, exception);
             }
         }
-        if (settings.Json) CliSupport.Json(results);
+        if (settings.Json)
+            CliSupport.Json(results.ToArray(), CliJsonContext.Default.BatteryJsonArray);
         return exitCode;
     }
 }

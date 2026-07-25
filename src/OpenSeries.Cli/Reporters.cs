@@ -12,7 +12,7 @@ internal static class Reporters
         var rows = devices.Select(ToDeviceJson).ToArray();
         if (json)
         {
-            CliSupport.Json(rows);
+            CliSupport.Json(rows, CliJsonContext.Default.DeviceJsonArray);
         }
         else if (rows.Length == 0)
         {
@@ -38,14 +38,14 @@ internal static class Reporters
             devices = devices.Where(device => device.Id == selector).ToArray();
             if (devices.Count != 1)
             {
-                if (json) CliSupport.Json(Array.Empty<StatusJson>());
+                if (json) CliSupport.Json(Array.Empty<StatusJson>(), CliJsonContext.Default.StatusJsonArray);
                 else AnsiConsole.MarkupLine($"[red]No unique device has ID[/] {Markup.Escape(selector)}.");
                 return 1;
             }
         }
         if (devices.Count == 0)
         {
-            if (json) CliSupport.Json(Array.Empty<StatusJson>());
+            if (json) CliSupport.Json(Array.Empty<StatusJson>(), CliJsonContext.Default.StatusJsonArray);
             else AnsiConsole.MarkupLine("[red]No supported SteelSeries device was found.[/]");
             return 1;
         }
@@ -95,7 +95,7 @@ internal static class Reporters
 
         if (json)
         {
-            CliSupport.Json(statuses);
+            CliSupport.Json(statuses.ToArray(), CliJsonContext.Default.StatusJsonArray);
         }
         else
         {

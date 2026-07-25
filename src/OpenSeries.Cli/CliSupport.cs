@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using OpenSeries.Devices;
 using Spectre.Console;
 using DeviceFeatures = OpenSeries.Devices.Features;
@@ -8,13 +9,6 @@ namespace OpenSeries.Cli;
 
 internal static class CliSupport
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        WriteIndented = true
-    };
-
     internal static IReadOnlyList<ISteelSeriesDevice> Discover(bool quiet = false)
     {
         try
@@ -107,8 +101,8 @@ internal static class CliSupport
         return mice;
     }
 
-    internal static void Json(object value) =>
-        Console.Out.WriteLine(JsonSerializer.Serialize(value, JsonOptions));
+    internal static void Json<T>(T value, JsonTypeInfo<T> typeInfo) =>
+        Console.Out.WriteLine(JsonSerializer.Serialize(value, typeInfo));
 
     internal static void Error(ISteelSeriesDevice? device, Exception exception)
     {
@@ -167,3 +161,13 @@ internal sealed record StatusJson(
     BatteryJson? Battery,
     ChatMixJson? ChatMix,
     string? Error);
+
+[JsonSourceGenerationOptions(
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    WriteIndented = true)]
+[JsonSerializable(typeof(DeviceJson[]))]
+[JsonSerializable(typeof(BatteryJson[]))]
+[JsonSerializable(typeof(ChatMixJson[]))]
+[JsonSerializable(typeof(StatusJson[]))]
+internal sealed partial class CliJsonContext : JsonSerializerContext;

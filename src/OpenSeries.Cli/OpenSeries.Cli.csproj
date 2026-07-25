@@ -11,4 +11,9 @@
     <ProjectReference Include="../OpenSeries.Lib/OpenSeries.Lib.csproj" />
     <PackageReference Include="Spectre.Console.Cli" Version="0.55.0" />
   </ItemGroup>
+  <ItemGroup>
+    <TrimmerRootAssembly Include="openseries" />
+    <TrimmerRootAssembly Include="HidSharp" />
+    <TrimmerRootAssembly Include="Spectre.Console.Cli" />
+  </ItemGroup>
 </Project>
