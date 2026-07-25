@@ -193,7 +193,7 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMou
         int batteryStep = raw & 0x7f;
         if (batteryStep is < 1 or > 21)
         {
-            throw new InvalidOperationException("mouse is disconnected or returned an invalid battery level");
+            return new BatteryInfo(0, BatteryStatus.Disconnected, response);
         }
 
         ushort level = (ushort)((batteryStep - 1) * 5);
