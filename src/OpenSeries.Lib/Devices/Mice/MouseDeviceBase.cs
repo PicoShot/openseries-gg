@@ -20,7 +20,7 @@ internal abstract class MouseDeviceBase(HidSharp.HidDevice endpoint, DeviceIdent
 
     public virtual void SetPollingRate(ushort pollingRate) => throw Unsupported("polling rate control");
 
-    public virtual void SetIllumination(MouseZone zone, RgbColor color) => throw Unsupported("illumination control");
+    public virtual void SetIllumination(MouseZone zone, RgbColor color, bool save) => throw Unsupported("illumination control");
 
     public virtual void SetSleepTimer(byte minutes) => throw Unsupported("sleep timer");
 

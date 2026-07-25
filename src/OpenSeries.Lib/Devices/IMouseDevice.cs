@@ -7,7 +7,7 @@ public interface IMouseDevice : ISteelSeriesDevice
     IReadOnlyList<MouseZone> SupportedIlluminationZones { get; }
     void SetSensitivity(IReadOnlyList<ushort> dpiPresets);
     void SetPollingRate(ushort pollingRate);
-    void SetIllumination(MouseZone zone, RgbColor color);
+    void SetIllumination(MouseZone zone, RgbColor color, bool save);
     void SetSleepTimer(byte minutes);
     BatteryInfo GetBattery();
 }

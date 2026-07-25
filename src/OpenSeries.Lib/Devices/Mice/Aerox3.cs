@@ -127,7 +127,7 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : Mous
         SendAndSave([0x2b, encoded]);
     }
 
-    public override void SetIllumination(MouseZone zone, RgbColor color)
+    public override void SetIllumination(MouseZone zone, RgbColor color, bool save)
     {
         ArgumentNullException.ThrowIfNull(color);
         if (zone is not (MouseZone.Top or MouseZone.Middle or MouseZone.Bottom))
@@ -145,7 +145,11 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : Mous
                 _ => throw new ArgumentOutOfRangeException(nameof(zone))
             };
 
-        SendAndSave([.. prefix, color.Red, color.Green, color.Blue]);
+        byte[] command = [.. prefix, color.Red, color.Green, color.Blue];
+        if (save)
+            SendAndSave(command);
+        else
+            SendCommand(command, IsReceiver);
     }
 
     public override void SetSleepTimer(byte minutes)

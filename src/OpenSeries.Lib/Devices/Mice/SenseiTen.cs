@@ -96,7 +96,7 @@ internal sealed class SenseiTen(HidDevice endpoint, DeviceIdentity identity) : M
         SendAndSave([0x54, 0x00, encoded]);
     }
 
-    public override void SetIllumination(MouseZone zone, RgbColor color)
+    public override void SetIllumination(MouseZone zone, RgbColor color, bool save)
     {
         ArgumentNullException.ThrowIfNull(color);
         byte ledId = zone switch
@@ -123,7 +123,10 @@ internal sealed class SenseiTen(HidDevice endpoint, DeviceIdentity identity) : M
         command[33] = color.Blue;
         command[34] = 0x00;
 
-        SendFeatureAndSave(command);
+        if (save)
+            SendFeatureAndSave(command);
+        else
+            Transport.WriteFeature(command, commandOffset: 1);
     }
 
     private void SendAndSave(ReadOnlySpan<byte> command)

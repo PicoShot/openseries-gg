@@ -291,7 +291,7 @@ internal sealed class InteractiveCommand : Command<InteractiveSettings>
                     .UseConverter(value => value.ToString())
                     .AddChoices(device.SupportedIlluminationZones));
                 string input = AnsiConsole.Ask<string>("Color [grey](RRGGBB, for example ff8000)[/]:");
-                device.SetIllumination(zone, ParseColor(input));
+                device.SetIllumination(zone, ParseColor(input), save: true);
             };
         if (device.SupportedFeatures.HasFlag(DeviceFeatures.SleepTimer))
             operations["Set sleep timer"] = () =>

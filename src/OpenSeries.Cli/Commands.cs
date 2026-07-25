@@ -176,7 +176,7 @@ internal sealed class MouseColorCommand : Command<MouseColorSettings>
         }
 
         return MouseSetters.Apply(settings.Device, DeviceFeatures.Illumination,
-            mouse => mouse.SetIllumination(zone, new RgbColor(red, green, blue)),
+            mouse => mouse.SetIllumination(zone, new RgbColor(red, green, blue), save: true),
             $"{zone} lighting set to #{color.ToLowerInvariant()}.");
     }
 }
