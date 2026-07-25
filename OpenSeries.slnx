@@ -1,0 +1,6 @@
+﻿<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OpenSeries.Lib/OpenSeries.Lib.csproj" />
+    <Project Path="src/OpenSeries.Cli/OpenSeries.Cli.csproj" />
+  </Folder>
+</Solution>

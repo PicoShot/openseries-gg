@@ -30,14 +30,14 @@ jobs:
 
       - name: Restore dependencies
         run: >-
-          dotnet restore OpenSeries.sln
+          dotnet restore OpenSeries.slnx
           --locked-mode
           --maxcpucount:1
           -p:UseSharedCompilation=false
 
       - name: Build
         run: >-
-          dotnet build OpenSeries.sln
+          dotnet build OpenSeries.slnx
           --configuration Release
           --no-restore
           --warnaserror
