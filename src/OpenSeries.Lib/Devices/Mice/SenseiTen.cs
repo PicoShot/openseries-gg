@@ -53,6 +53,8 @@ internal sealed class SenseiTen(HidDevice endpoint, DeviceIdentity identity) : I
 
     public MouseSensitivityInfo SensitivityInfo { get; } = new(50, 18_000, 50, 5);
     public IReadOnlyList<ushort> SupportedPollingRates { get; } = [125, 250, 500, 1000];
+    public IReadOnlyList<MouseZone> SupportedIlluminationZones { get; } =
+        [MouseZone.Logo, MouseZone.Wheel];
 
     public void SetSensitivity(IReadOnlyList<ushort> dpiPresets)
     {

@@ -4,6 +4,7 @@ public interface IMouseDevice : ISteelSeriesDevice
 {
     MouseSensitivityInfo SensitivityInfo { get; }
     IReadOnlyList<ushort> SupportedPollingRates { get; }
+    IReadOnlyList<MouseZone> SupportedIlluminationZones { get; }
     void SetSensitivity(IReadOnlyList<ushort> dpiPresets);
     void SetPollingRate(ushort pollingRate);
     void SetIllumination(MouseZone zone, RgbColor color);

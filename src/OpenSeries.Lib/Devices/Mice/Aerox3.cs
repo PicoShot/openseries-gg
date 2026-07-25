@@ -90,6 +90,8 @@ internal sealed class Aerox3(HidDevice endpoint, DeviceIdentity identity) : IMou
         ? new(100, 18_000, 100, 5)
         : new(200, 8_500, 100, 5);
     public IReadOnlyList<ushort> SupportedPollingRates { get; } = [125, 250, 500, 1000];
+    public IReadOnlyList<MouseZone> SupportedIlluminationZones { get; } =
+        [MouseZone.Top, MouseZone.Middle, MouseZone.Bottom];
 
     public void SetSensitivity(IReadOnlyList<ushort> dpiPresets)
     {
