@@ -115,9 +115,89 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  publish-aot:
+    name: Publish ${{ matrix.name }} Native AOT
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            runner: ubuntu-latest
+            rid: linux-x64
+            executable: openseries
+            asset: openseries-linux-x64-aot
+          - name: Linux ARM64
+            runner: ubuntu-24.04-arm
+            rid: linux-arm64
+            executable: openseries
+            asset: openseries-linux-arm64-aot
+          - name: Windows x64
+            runner: windows-latest
+            rid: win-x64
+            executable: openseries.exe
+            asset: openseries-windows-x64-aot.exe
+          - name: Windows ARM64
+            runner: windows-11-arm
+            rid: win-arm64
+            executable: openseries.exe
+            asset: openseries-windows-arm64-aot.exe
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+          dotnet-quality: ga
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+
+      - name: Publish Native AOT binary
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p release-assets
+          dotnet publish src/OpenSeries.Cli/OpenSeries.Cli.csproj \
+            --configuration Release \
+            --runtime "${{ matrix.rid }}" \
+            --self-contained true \
+            -p:PublishAot=true \
+            -p:StripSymbols=true \
+            -p:DebugType=None \
+            -p:DebugSymbols=false \
+            -p:Version="$version" \
+            -p:PublishDir="$GITHUB_WORKSPACE/publish/aot/" \
+            --maxcpucount:1 \
+            -p:UseSharedCompilation=false
+          cp "publish/aot/${{ matrix.executable }}" \
+            "release-assets/${{ matrix.asset }}"
+
+      - name: Create asset manifest
+        shell: bash
+        run: |
+          printf '%s|%s Native AOT\n' \
+            "${{ matrix.asset }}" "${{ matrix.name }}" \
+            > "release-assets/manifest-aot-${{ matrix.rid }}.txt"
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-aot-${{ matrix.rid }}
+          path: release-assets/
+          if-no-files-found: error
+          retention-days: 1
+
   release:
     name: Create draft release
-    needs: publish
+    needs:
+      - publish
+      - publish-aot
     if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
