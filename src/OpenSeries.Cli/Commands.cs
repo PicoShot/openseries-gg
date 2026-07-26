@@ -20,6 +20,13 @@ internal sealed class StatusCommand : Command<DeviceJsonSettings>
         Reporters.Status(settings.Device, settings.Json);
 }
 
+[Description("Read battery status for all supported devices.")]
+internal sealed class AllBatteryCommand : Command<JsonSettings>
+{
+    protected override int Execute(CommandContext context, JsonSettings settings, CancellationToken cancellationToken) =>
+        Reporters.Battery(settings.Json);
+}
+
 [Description("Read headset battery status.")]
 internal sealed class BatteryCommand : Command<DeviceJsonSettings>
 {

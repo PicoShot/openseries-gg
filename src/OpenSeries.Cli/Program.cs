@@ -6,6 +6,7 @@ app.Configure(configuration =>
 {
     configuration.SetApplicationName("openseries");
     configuration.SetApplicationVersion(typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0");
+    configuration.AddCommand<AllBatteryCommand>("battery");
     configuration.AddCommand<StatusCommand>("status");
     configuration.AddCommand<InteractiveCommand>("interactive");
     configuration.AddBranch("devices", devices => devices.AddCommand<DevicesListCommand>("list"));

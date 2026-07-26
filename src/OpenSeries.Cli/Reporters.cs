@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using OpenSeries.Devices;
 using Spectre.Console;
 using DeviceFeatures = OpenSeries.Devices.Features;
@@ -6,6 +7,52 @@ namespace OpenSeries.Cli;
 
 internal static class Reporters
 {
+    internal static int Battery(bool json)
+    {
+        using DeviceSelection<ISteelSeriesDevice> discovered = CliSupport.Discover(json);
+        ISteelSeriesDevice[] devices = discovered
+            .Where(device =>
+                device.SupportedFeatures.HasFlag(DeviceFeatures.BatteryStatus) &&
+                device is IHeadsetDevice or IMouseDevice)
+            .ToArray();
+
+        if (devices.Length == 0)
+        {
+            if (json) CliSupport.Json(Array.Empty<BatteryJson>(), CliJsonContext.Default.BatteryJsonArray);
+            else AnsiConsole.MarkupLine("[red]No connected device with battery status support was found.[/]");
+            return 1;
+        }
+
+        int failures = 0;
+        var results = new List<BatteryJson>(devices.Length);
+        foreach (ISteelSeriesDevice device in devices)
+        {
+            try
+            {
+                BatteryInfo battery = device switch
+                {
+                    IHeadsetDevice headset => headset.GetBattery(),
+                    IMouseDevice mouse => mouse.GetBattery(),
+                    _ => throw new UnreachableException()
+                };
+                results.Add(new(device.Id, device.Name, battery.LevelPercentage, battery.Status.ToString()));
+                if (!json)
+                    AnsiConsole.MarkupLine(
+                        $"{Markup.Escape(device.Id)}: {CliSupport.BatteryDisplay(battery.LevelPercentage, battery.Status.ToString())}");
+            }
+            catch (Exception exception)
+            {
+                failures++;
+                results.Add(new(device.Id, device.Name, null, null, exception.Message));
+                if (!json) CliSupport.Error(device, exception);
+            }
+        }
+
+        if (json)
+            CliSupport.Json(results.ToArray(), CliJsonContext.Default.BatteryJsonArray);
+        return failures == 0 ? 0 : 1;
+    }
+
     internal static int List(bool json)
     {
         using DeviceSelection<ISteelSeriesDevice> devices = CliSupport.Discover(json);
