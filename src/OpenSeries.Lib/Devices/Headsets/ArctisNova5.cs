@@ -293,7 +293,10 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
 
     private byte[] ReadDeviceStatus(int minimumLength)
     {
-        byte[] response = Transport.WriteOutputAndRead([0x00, 0xb0], StatusBufferSize);
+        byte[] response = Transport.WriteOutputAndRead(
+            [0x00, 0xb0],
+            StatusBufferSize,
+            normalizeLeadingZeroReportIdFor: 0xb0);
         int statusOffset = response.Length >= 2 && response[0] == 0x00 && response[1] == 0xb0 ? 1 : 0;
         int statusLength = response.Length - statusOffset;
         if (statusLength < minimumLength)
@@ -301,7 +304,7 @@ internal sealed class ArctisNova5(HidDevice endpoint, DeviceIdentity identity) :
             throw new InvalidDataException($"Device returned a short status response ({response.Length} bytes).");
         }
 
-        return response[statusOffset..];
+        return statusOffset == 0 ? response : response.AsSpan(statusOffset).ToArray();
     }
 
     private void SaveState()

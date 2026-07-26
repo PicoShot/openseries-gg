@@ -231,14 +231,17 @@ internal sealed class ArctisNova7(HidDevice endpoint, DeviceIdentity identity) :
 
     private byte[] ReadDeviceStatus()
     {
-        byte[] response = Transport.WriteOutputAndRead([0x00, 0xb0], StatusBufferSize);
+        byte[] response = Transport.WriteOutputAndRead(
+            [0x00, 0xb0],
+            StatusBufferSize,
+            normalizeLeadingZeroReportIdFor: 0xb0);
         if (response.Length < 6)
         {
             throw new InvalidDataException($"Device returned a short status response ({response.Length} bytes).");
         }
 
         int statusOffset = response.Length >= 7 && response[0] == 0x00 && response[1] == 0xb0 ? 1 : 0;
-        return response[statusOffset..];
+        return statusOffset == 0 ? response : response.AsSpan(statusOffset).ToArray();
     }
 
     private void SendCommand(ReadOnlySpan<byte> command) => Transport.WriteOutput(command, minimumReportLength: MessageSize);

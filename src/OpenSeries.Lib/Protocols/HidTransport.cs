@@ -1,3 +1,4 @@
+using System.Buffers;
 using HidSharp;
 
 namespace OpenSeries.Protocols;
@@ -26,16 +27,32 @@ internal sealed class HidTransport(HidDevice endpoint, int timeoutMilliseconds) 
         ReadOnlySpan<byte> command,
         int responseBufferLength,
         int commandOffset = 0,
-        int minimumReportLength = 0)
+        int minimumReportLength = 0,
+        byte? normalizeLeadingZeroReportIdFor = null)
     {
         EnsureNotDisposed();
         byte[] report = CreateReport(command, commandOffset, endpoint.GetMaxOutputReportLength(), minimumReportLength, "Output");
         return Execute(activeStream =>
         {
             activeStream.Write(report);
-            var response = new byte[Math.Max(responseBufferLength, endpoint.GetMaxInputReportLength())];
-            int bytesRead = activeStream.Read(response);
-            return response[..bytesRead];
+            int bufferLength = Math.Max(responseBufferLength, endpoint.GetMaxInputReportLength());
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferLength);
+            try
+            {
+                int bytesRead = activeStream.Read(buffer, 0, bufferLength);
+                int responseOffset =
+                    normalizeLeadingZeroReportIdFor is byte commandByte &&
+                    bytesRead >= 2 &&
+                    buffer[0] == 0x00 &&
+                    buffer[1] == commandByte
+                        ? 1
+                        : 0;
+                return buffer.AsSpan(responseOffset, bytesRead - responseOffset).ToArray();
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
         });
     }
 

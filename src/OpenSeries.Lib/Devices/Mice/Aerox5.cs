@@ -202,7 +202,8 @@ internal sealed class Aerox5(HidDevice endpoint, DeviceIdentity identity) : Mous
 
     private byte[] SendCommand(ReadOnlySpan<byte> command, bool readResponse)
     {
-        byte[] framedCommand = command.ToArray();
+        Span<byte> framedCommand = stackalloc byte[command.Length];
+        command.CopyTo(framedCommand);
         if (IsReceiver)
         {
             framedCommand[0] |= 0x40;

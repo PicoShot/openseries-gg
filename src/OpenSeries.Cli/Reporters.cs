@@ -10,23 +10,14 @@ internal static class Reporters
     internal static int Battery(bool json)
     {
         using DeviceSelection<ISteelSeriesDevice> discovered = CliSupport.Discover(json);
-        ISteelSeriesDevice[] devices = discovered
-            .Where(device =>
-                device.SupportedFeatures.HasFlag(DeviceFeatures.BatteryStatus) &&
-                device is IHeadsetDevice or IMouseDevice)
-            .ToArray();
-
-        if (devices.Length == 0)
-        {
-            if (json) CliSupport.Json(Array.Empty<BatteryJson>(), CliJsonContext.Default.BatteryJsonArray);
-            else AnsiConsole.MarkupLine("[red]No connected device with battery status support was found.[/]");
-            return 1;
-        }
-
         int failures = 0;
-        var results = new List<BatteryJson>(devices.Length);
-        foreach (ISteelSeriesDevice device in devices)
+        var results = new List<BatteryJson>(discovered.Count);
+        foreach (ISteelSeriesDevice device in discovered)
         {
+            if (!device.SupportedFeatures.HasFlag(DeviceFeatures.BatteryStatus) ||
+                device is not (IHeadsetDevice or IMouseDevice))
+                continue;
+
             try
             {
                 BatteryInfo battery = device switch
@@ -46,6 +37,13 @@ internal static class Reporters
                 results.Add(new(device.Id, device.Name, null, null, exception.Message));
                 if (!json) CliSupport.Error(device, exception);
             }
+        }
+
+        if (results.Count == 0)
+        {
+            if (json) CliSupport.Json(Array.Empty<BatteryJson>(), CliJsonContext.Default.BatteryJsonArray);
+            else AnsiConsole.MarkupLine("[red]No connected device with battery status support was found.[/]");
+            return 1;
         }
 
         if (json)
