@@ -1,23 +1,16 @@
-# Why OpenSeries
+# OpenSeries
 
-OpenSeries started when I switched from Windows to Linux. Most of my setup is
-made by SteelSeries including my mouse and headset but SteelSeries GG isn't
-available on Linux. I still wanted a simple way to check my devices and change
-their settings, so I decided to build one.
+OpenSeries is a Rust command-line application and reusable library for
+discovering and controlling supported SteelSeries HID devices without
+SteelSeries GG.
 
-The goal is to create a friendly, open-source, cross-platform alternative for
-controlling SteelSeries devices without needing SteelSeries GG. The project
-currently supports selected Arctis headsets and Aerox mice, with readable
-terminal output for people and stable JSON output for scripts.
-
-OpenSeries is more than a CLI tool. `OpenSeries.Lib` is a powerful reusable
-library for discovering supported devices, reading their status, and changing
-any setting implemented for them. Explore the
-[example projects](examples/) to see how the library can power custom
-integrations, live controls, and lighting effects.
+The project began as a Linux-friendly way to check device status and change
+settings, and is designed to work across Linux, Windows, and macOS. Human output
+is readable in a terminal, while stable JSON output supports scripts and other
+integrations.
 
 > [!IMPORTANT]
-OpenSeries is an independent project and is not affiliated with or endorsed
+> OpenSeries is an independent project and is not affiliated with or endorsed
 > by SteelSeries.
 
 ## Showcase
@@ -45,47 +38,48 @@ OpenSeries is an independent project and is not affiliated with or endorsed
 | Aerox 5 Wireless variants |   Yes   |     Yes     |     Yes      |    Yes    |     Yes     |
 | Sensei Ten variants       |   N/A   |     Yes     |     Yes      |    Yes    |     N/A     |
 
-I don't have access to all SteelSeries devices to reverse engineer them. If your device isn't supported yet, contributions are very welcome. Feel free to open a PR.
+Contributions for additional devices are welcome. Protocol behavior must be
+verified against the exact model rather than inferred from a related device.
 
 ## Requirements
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) to build
+- The Rust toolchain pinned by `rust-toolchain.toml`
 - A supported SteelSeries device
-- Permission to access the device's HID interface
+- Permission to access its HID control interface
+- On Linux, the development files for `libudev`
 
 ## Build
-
-Clone the repository and build the complete solution:
 
 ```bash
 git clone https://github.com/PicoShot/openseries-gg.git
 cd openseries-gg
-dotnet restore OpenSeries.sln
-dotnet build OpenSeries.sln -c Release
+cargo build --workspace --release --locked
 ```
 
-Run the compiled application:
+The executable is written to `target/release/openseries`.
+
+Run the verification suite:
 
 ```bash
-openseries --help
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
 ```
 
-You can also run it directly through the .NET SDK:
+## Usage
 
 ```bash
-dotnet run --project src/OpenSeries.Cli -- devices list
-```
+# use --json for json output
+openseries devices list
+openseries status
+openseries battery
 
-usage examples:
-
-```bash
-
-# headset example
+# Headsets
 openseries headset battery
 openseries headset chatmix
 openseries headset sidetone 50
-openseries headset equalizer preset 1 # 0=Flat, 1=Bass Boost, 2=Smiley, 3=Focus
-openseries headset inactive-time 5 # in minute
+openseries headset inactive-time 5
+openseries headset equalizer preset 1
+openseries headset equalizer set "0,0,0,0,0,0,0,0,0,0"
 openseries headset microphone-volume 96
 openseries headset microphone-mute-led 2
 openseries headset volume-limiter on
@@ -93,36 +87,45 @@ openseries headset equalizer parametric "32:3.5:1.414:low-shelf,1000:0:1.0:peaki
 openseries headset bluetooth power-on on
 openseries headset bluetooth call-volume lower
 
-# mouse example
+# Mice
 openseries mouse battery
 openseries mouse sensitivity 400,800,1600
 openseries mouse polling-rate 1000
-openseries mouse color top ff8000 # bottom middle top 
+openseries mouse color top ff8000
 openseries mouse sleep-timer 5
+
+# Interactive controls
+openseries interactive
 ```
+
+Without a device selector, compatible commands operate on every connected
+device. Use `--device <id>` to target one device.
 
 ## Library usage
 
-`OpenSeries.Lib` can be referenced independently of the CLI.
+The `openseries` library crate contains discovery and protocol logic without
+CLI or terminal dependencies:
 
-```csharp
-using OpenSeries;
-using OpenSeries.Devices;
+```rust
+use openseries::devices::{Capabilities, Device};
+use openseries::discover_devices;
 
-var manager = new DeviceManager();
+fn main() -> openseries::Result<()> {
+    for mut device in discover_devices()? {
+        println!("{}: {}", device.name(), device.id());
 
-foreach (ISteelSeriesDevice device in manager.GetConnectedDevices())
-{
-    using (device)
-    {
-        Console.WriteLine($"{device.Name}: {device.Id}");
-
-        if (device is IHeadsetDevice headset &&
-            device.SupportedFeatures.HasFlag(Features.BatteryStatus))
-        {
-            BatteryInfo battery = headset.GetBattery();
-            Console.WriteLine($"{battery.LevelPercentage}% ({battery.Status})");
+        if device.capabilities().contains(Capabilities::BATTERY_STATUS) {
+            let battery = match &mut device {
+                Device::Headset(headset) => headset.get_battery()?,
+                Device::Mouse(mouse) => mouse.get_battery()?,
+            };
+            println!("{}% ({})", battery.level_percentage, battery.status);
         }
     }
+
+    Ok(())
 }
 ```
+
+See [examples](examples/) for complete
+programs built on the library.

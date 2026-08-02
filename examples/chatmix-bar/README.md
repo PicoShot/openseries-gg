@@ -14,14 +14,14 @@ Game 100%  [───────────────◆──────�
 From the repository root:
 
 ```bash
-dotnet run --project examples/chatmix-bar
+cargo run --release --package chatmix-bar
 ```
 
 Turn the ChatMix dial to move the marker. Press Ctrl+C to exit.
 
 ## Requirements
 
-- .NET 10 SDK
+- The Rust toolchain pinned by `rust-toolchain.toml`
 - A supported SteelSeries headset with ChatMix
 - Permission to access its HID endpoints
 

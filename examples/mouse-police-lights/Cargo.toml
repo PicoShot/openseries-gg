@@ -1,0 +1,9 @@
+[package]
+name = "mouse-police-lights"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+ctrlc.workspace = true
+openseries-lib = { path = "../../src/openseries-lib" }

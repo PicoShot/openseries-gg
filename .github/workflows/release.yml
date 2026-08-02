@@ -12,111 +12,6 @@ permissions:
 jobs:
   publish:
     name: Publish ${{ matrix.name }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Linux x64
-            rid: linux-x64
-            executable: openseries
-            asset: openseries-linux-x64
-            standalone-asset: openseries-linux-x64-standalone
-          - name: Linux ARM64
-            rid: linux-arm64
-            executable: openseries
-            asset: openseries-linux-arm64
-            standalone-asset: openseries-linux-arm64-standalone
-          - name: Windows x64
-            rid: win-x64
-            executable: openseries.exe
-            asset: openseries-windows-x64.exe
-            standalone-asset: openseries-windows-x64-standalone.exe
-          - name: Windows x86
-            rid: win-x86
-            executable: openseries.exe
-            asset: openseries-windows-x86.exe
-            standalone-asset: openseries-windows-x86-standalone.exe
-          - name: Windows ARM64
-            rid: win-arm64
-            executable: openseries.exe
-            asset: openseries-windows-arm64.exe
-            standalone-asset: openseries-windows-arm64-standalone.exe
-    env:
-      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-
-      - name: Set up .NET 10
-        uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: 10.0.x
-          dotnet-quality: ga
-          cache: true
-          cache-dependency-path: "**/packages.lock.json"
-
-      - name: Publish framework-dependent binary
-        shell: bash
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          mkdir -p release-assets
-          dotnet publish src/OpenSeries.Cli/OpenSeries.Cli.csproj \
-            --configuration Release \
-            --runtime "${{ matrix.rid }}" \
-            --self-contained false \
-            -p:PublishSingleFile=true \
-            -p:DebugType=None \
-            -p:DebugSymbols=false \
-            -p:Version="$version" \
-            -p:PublishDir="$GITHUB_WORKSPACE/publish/framework/" \
-            --maxcpucount:1 \
-            -p:UseSharedCompilation=false
-          cp "publish/framework/${{ matrix.executable }}" \
-            "release-assets/${{ matrix.asset }}"
-
-      - name: Publish standalone binary
-        shell: bash
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          dotnet publish src/OpenSeries.Cli/OpenSeries.Cli.csproj \
-            --configuration Release \
-            --runtime "${{ matrix.rid }}" \
-            --self-contained true \
-            -p:PublishSingleFile=true \
-            -p:PublishTrimmed=true \
-            -p:TrimMode=partial \
-            -p:DebugType=None \
-            -p:DebugSymbols=false \
-            -p:Version="$version" \
-            -p:PublishDir="$GITHUB_WORKSPACE/publish/standalone/" \
-            --maxcpucount:1 \
-            -p:UseSharedCompilation=false
-          cp "publish/standalone/${{ matrix.executable }}" \
-            "release-assets/${{ matrix.standalone-asset }}"
-
-      - name: Create asset manifest
-        shell: bash
-        run: |
-          printf '%s|%s (.NET 10 runtime required)\n' \
-            "${{ matrix.asset }}" "${{ matrix.name }}" \
-            > "release-assets/manifest-${{ matrix.rid }}.txt"
-          printf '%s|%s standalone\n' \
-            "${{ matrix.standalone-asset }}" "${{ matrix.name }}" \
-            >> "release-assets/manifest-${{ matrix.rid }}.txt"
-
-      - name: Upload release assets
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-${{ matrix.rid }}
-          path: release-assets/
-          if-no-files-found: error
-          retention-days: 1
-
-  publish-aot:
-    name: Publish ${{ matrix.name }} Native AOT
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     strategy:
@@ -125,79 +20,78 @@ jobs:
         include:
           - name: Linux x64
             runner: ubuntu-latest
-            rid: linux-x64
+            target: x86_64-unknown-linux-gnu
             executable: openseries
-            asset: openseries-linux-x64-aot
+            asset: openseries-linux-x64
           - name: Linux ARM64
             runner: ubuntu-24.04-arm
-            rid: linux-arm64
+            target: aarch64-unknown-linux-gnu
             executable: openseries
-            asset: openseries-linux-arm64-aot
+            asset: openseries-linux-arm64
           - name: Windows x64
             runner: windows-latest
-            rid: win-x64
+            target: x86_64-pc-windows-msvc
             executable: openseries.exe
-            asset: openseries-windows-x64-aot.exe
+            asset: openseries-windows-x64.exe
+          - name: Windows x86
+            runner: windows-latest
+            target: i686-pc-windows-msvc
+            executable: openseries.exe
+            asset: openseries-windows-x86.exe
           - name: Windows ARM64
             runner: windows-11-arm
-            rid: win-arm64
+            target: aarch64-pc-windows-msvc
             executable: openseries.exe
-            asset: openseries-windows-arm64-aot.exe
-    env:
-      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+            asset: openseries-windows-arm64.exe
+          - name: macOS x64
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            executable: openseries
+            asset: openseries-macos-x64
+          - name: macOS ARM64
+            runner: macos-latest
+            target: aarch64-apple-darwin
+            executable: openseries
+            asset: openseries-macos-arm64
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Set up .NET 10
-        uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: 10.0.x
-          dotnet-quality: ga
-          cache: true
-          cache-dependency-path: "**/packages.lock.json"
+      - name: Install Linux HID development files
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes libudev-dev
 
-      - name: Publish Native AOT binary
+      - name: Install pinned Rust toolchain
+        run: rustup show
+
+      - name: Install target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --locked --package openseries-cli --target ${{ matrix.target }}
+
+      - name: Stage artifact
         shell: bash
         run: |
-          version="${GITHUB_REF_NAME#v}"
           mkdir -p release-assets
-          dotnet publish src/OpenSeries.Cli/OpenSeries.Cli.csproj \
-            --configuration Release \
-            --runtime "${{ matrix.rid }}" \
-            --self-contained true \
-            -p:PublishAot=true \
-            -p:StripSymbols=true \
-            -p:DebugType=None \
-            -p:DebugSymbols=false \
-            -p:Version="$version" \
-            -p:PublishDir="$GITHUB_WORKSPACE/publish/aot/" \
-            --maxcpucount:1 \
-            -p:UseSharedCompilation=false
-          cp "publish/aot/${{ matrix.executable }}" \
+          cp "target/${{ matrix.target }}/release/${{ matrix.executable }}" \
             "release-assets/${{ matrix.asset }}"
-
-      - name: Create asset manifest
-        shell: bash
-        run: |
-          printf '%s|%s Native AOT\n' \
+          printf '%s|%s\n' \
             "${{ matrix.asset }}" "${{ matrix.name }}" \
-            > "release-assets/manifest-aot-${{ matrix.rid }}.txt"
+            > "release-assets/manifest-${{ matrix.target }}.txt"
 
       - name: Upload release assets
         uses: actions/upload-artifact@v7
         with:
-          name: release-aot-${{ matrix.rid }}
+          name: release-${{ matrix.target }}
           path: release-assets/
           if-no-files-found: error
           retention-days: 1
 
   release:
     name: Create draft release
-    needs:
-      - publish
-      - publish-aot
+    needs: publish
     if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5

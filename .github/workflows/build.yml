@@ -10,36 +10,33 @@ permissions:
 
 jobs:
   build:
-    name: Compile solution
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+    name: Rust (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      - name: Set up .NET 10
-        uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: 10.0.x
-          dotnet-quality: ga
-          cache: true
-          cache-dependency-path: "**/packages.lock.json"
+      - name: Install Linux HID development files
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes libudev-dev
 
-      - name: Restore dependencies
-        run: >-
-          dotnet restore OpenSeries.slnx
-          --locked-mode
-          --maxcpucount:1
-          -p:UseSharedCompilation=false
+      - name: Install pinned Rust toolchain
+        run: rustup show
 
-      - name: Build
-        run: >-
-          dotnet build OpenSeries.slnx
-          --configuration Release
-          --no-restore
-          --warnaserror
-          --maxcpucount:1
-          -p:UseSharedCompilation=false
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Lint
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Build release
+        run: cargo build --workspace --release --locked

@@ -19,7 +19,7 @@ mouse's onboard configuration.
 From the repository root:
 
 ```bash
-dotnet run --project examples/mouse-police-lights
+cargo run --release --package mouse-police-lights
 ```
 
 Press Ctrl+C to stop. The final colors may remain active until another lighting
@@ -27,6 +27,6 @@ setting is applied or the mouse reloads its saved configuration.
 
 ## Requirements
 
-- .NET 10 SDK
+- The Rust toolchain pinned by `rust-toolchain.toml`
 - A supported SteelSeries mouse with controllable illumination
 - Permission to access its HID endpoints

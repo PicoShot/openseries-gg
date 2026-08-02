@@ -1,0 +1,20 @@
+[package]
+name = "openseries-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "openseries"
+path = "src/main.rs"
+
+[dependencies]
+anstream.workspace = true
+anstyle.workspace = true
+clap.workspace = true
+comfy-table.workspace = true
+inquire.workspace = true
+openseries-lib = { path = "../openseries-lib" }
+serde.workspace = true
+serde_json.workspace = true
