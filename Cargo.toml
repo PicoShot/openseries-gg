@@ -23,10 +23,7 @@ include = [
 
 [workspace]
 resolver = "3"
-members = [
-    "examples/chatmix-bar",
-    "examples/mouse-police-lights",
-]
+members = ["examples/chatmix-bar", "examples/mouse-police-lights"]
 
 [workspace.package]
 version = "1.0.0"
@@ -64,20 +61,28 @@ anstyle = { version = "1.0.13", optional = true }
 bitflags = "2.9.4"
 clap = { version = "4.6.4", features = ["derive"], optional = true }
 comfy-table = { version = "7.2.2", default-features = false, optional = true }
-inquire = { version = "0.9.4", default-features = false, features = ["crossterm"], optional = true }
+inquire = { version = "0.9.4", default-features = false, features = [
+    "crossterm",
+], optional = true }
 serde = { version = "1.0.228", features = ["derive"], optional = true }
 serde_json = { version = "1.0.151", optional = true }
 sha2 = "0.11.0"
 thiserror = "2.0.17"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-hidapi = { version = "2.6.6", default-features = false, features = ["linux-static-hidraw"] }
+hidapi = { version = "2.6.6", default-features = false, features = [
+    "linux-static-hidraw",
+] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-hidapi = { version = "2.6.6", default-features = false, features = ["windows-native"] }
+hidapi = { version = "2.6.6", default-features = false, features = [
+    "windows-native",
+] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-hidapi = { version = "2.6.6", default-features = false, features = ["macos-shared-device"] }
+hidapi = { version = "2.6.6", default-features = false, features = [
+    "macos-shared-device",
+] }
 
 [profile.release]
 opt-level = 3
