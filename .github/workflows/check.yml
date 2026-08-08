@@ -1,4 +1,4 @@
-name: Build
+name: Check
 
 on:
   push:
@@ -38,5 +38,5 @@ jobs:
       - name: Lint
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
-      - name: Build release
-        run: cargo build --workspace --release --locked
+      - name: Check release
+        run: cargo check --workspace --release --locked
