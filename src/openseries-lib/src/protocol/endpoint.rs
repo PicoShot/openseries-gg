@@ -1,6 +1,6 @@
 use super::identity::normalized_path;
 use super::transport::{ReportSizes, report_sizes};
-use hidapi::{DeviceInfo, HidApi};
+use hidapi::{DeviceInfo, HidApi, HidDevice};
 
 pub(crate) struct Endpoint {
     product_id: u16,
@@ -8,11 +8,13 @@ pub(crate) struct Endpoint {
     descriptor_usage: bool,
     windows_interface_three: bool,
     report_sizes: Option<ReportSizes>,
+    device: Option<HidDevice>,
 }
 
 impl Endpoint {
     pub(crate) fn inspect(api: &HidApi, info: &DeviceInfo) -> Self {
-        let descriptor = endpoint_descriptor(api, info);
+        let device = info.open_device(api).ok();
+        let descriptor = device.as_ref().and_then(endpoint_descriptor);
         Self {
             product_id: info.product_id(),
             direct_usage: info.usage_page() == 0xffc0 && info.usage() == 1,
@@ -21,6 +23,7 @@ impl Endpoint {
                 .is_some_and(|value| descriptor_contains_usage(value, 0xffc0, 1)),
             windows_interface_three: normalized_path(info.path()).contains("&mi_03"),
             report_sizes: descriptor.as_deref().map(report_sizes),
+            device,
         }
     }
 
@@ -45,10 +48,13 @@ impl Endpoint {
             feature: 64,
         })
     }
+
+    pub(crate) fn take_device(&mut self) -> Option<HidDevice> {
+        self.device.take()
+    }
 }
 
-fn endpoint_descriptor(api: &HidApi, info: &DeviceInfo) -> Option<Vec<u8>> {
-    let device = info.open_device(api).ok()?;
+fn endpoint_descriptor(device: &HidDevice) -> Option<Vec<u8>> {
     let mut descriptor = vec![0_u8; hidapi::MAX_REPORT_DESCRIPTOR_SIZE];
     let length = device.get_report_descriptor(&mut descriptor).ok()?;
     descriptor.truncate(length);

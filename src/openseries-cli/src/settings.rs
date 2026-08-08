@@ -1,4 +1,5 @@
 use clap::{Args, Parser, Subcommand};
+use std::time::Duration;
 
 #[derive(Parser)]
 #[command(
@@ -15,8 +16,22 @@ pub(crate) struct Cli {
         help = "Prints version information"
     )]
     pub(crate) version: (),
+    /// Maximum time to wait for a device response.
+    #[arg(
+        long,
+        default_value_t = 2_000,
+        value_name = "MILLISECONDS",
+        global = true
+    )]
+    pub(crate) timeout_ms: u64,
     #[command(subcommand)]
     pub(crate) command: Option<Command>,
+}
+
+impl Cli {
+    pub(crate) fn discovery_options(&self) -> openseries::DiscoveryOptions {
+        openseries::DiscoveryOptions::default().with_timeout(Duration::from_millis(self.timeout_ms))
+    }
 }
 
 #[derive(Subcommand)]

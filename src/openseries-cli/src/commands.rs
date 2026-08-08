@@ -7,7 +7,7 @@ use openseries::devices::headsets::{
 };
 use openseries::devices::mice::{Mouse, MouseZone, RgbColor};
 use openseries::devices::{Capabilities, Device, Persistence};
-use openseries::discover_devices;
+use openseries::{DiscoveryOptions, discover_devices_with_options};
 use serde::Serialize;
 use std::io::{self, Write};
 
@@ -60,38 +60,51 @@ struct StatusJson {
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
 }
+struct StatusRead {
+    status: StatusJson,
+    errors: Vec<String>,
+}
+struct BatteryRead {
+    id: String,
+    model: String,
+    result: openseries::Result<BatteryInfo>,
+}
 
 pub(crate) fn run() -> i32 {
     let no_arguments = std::env::args_os().len() == 1;
     let cli = Cli::parse();
+    let discovery = cli.discovery_options();
     if no_arguments {
-        let status = run_status(None, false);
+        let status = run_status(None, false, discovery);
         println!();
         let _ = Cli::command().print_help();
         println!();
         status
     } else if let Some(command) = cli.command {
-        dispatch(command)
+        dispatch(command, discovery)
     } else {
         validation("A command is required.")
     }
 }
 
-fn dispatch(command: Command) -> i32 {
+fn dispatch(command: Command, discovery: DiscoveryOptions) -> i32 {
     match command {
-        Command::Battery(args) => run_all_battery(args.json),
-        Command::Status(args) => run_status(args.device.device.as_deref(), args.json),
-        Command::Interactive => interactive::run(),
+        Command::Battery(args) => run_all_battery(args.json, discovery),
+        Command::Status(args) => run_status(args.device.device.as_deref(), args.json, discovery),
+        Command::Interactive => interactive::run(discovery),
         Command::Devices {
             command: DevicesCommand::List(args),
-        } => list(args.json),
-        Command::Headset { command } => headset(command),
-        Command::Mouse { command } => mouse(command),
+        } => list(args.json, discovery),
+        Command::Headset { command } => headset(command, discovery),
+        Command::Mouse { command } => mouse(command, discovery),
     }
 }
 
-pub(crate) fn discover(quiet: bool) -> std::result::Result<Vec<Device>, i32> {
-    discover_devices().map_err(|error| {
+pub(crate) fn discover(
+    quiet: bool,
+    options: DiscoveryOptions,
+) -> std::result::Result<Vec<Device>, i32> {
+    discover_devices_with_options(options).map_err(|error| {
         if !quiet {
             error_line(&error.to_string());
         }
@@ -99,8 +112,8 @@ pub(crate) fn discover(quiet: bool) -> std::result::Result<Vec<Device>, i32> {
     })
 }
 
-fn list(json: bool) -> i32 {
-    let Ok(devices) = discover(json) else {
+fn list(json: bool, discovery: DiscoveryOptions) -> i32 {
+    let Ok(devices) = discover(json, discovery) else {
         if json {
             write_json(&Vec::<DeviceJson>::new());
         }
@@ -212,8 +225,8 @@ fn capabilities(device: &Device) -> Vec<String> {
     values
 }
 
-fn run_status(selector: Option<&str>, json: bool) -> i32 {
-    let Ok(mut devices) = discover(json) else {
+fn run_status(selector: Option<&str>, json: bool, discovery: DiscoveryOptions) -> i32 {
+    let Ok(mut devices) = discover(json, discovery) else {
         if json {
             write_json(&Vec::<StatusJson>::new());
         }
@@ -238,77 +251,16 @@ fn run_status(selector: Option<&str>, json: bool) -> i32 {
         }
         return 1;
     }
-    let mut failures = 0;
-    let mut statuses = Vec::with_capacity(devices.len());
-    for device in &mut devices {
-        let id = device.id().to_owned();
-        let model = device.name().to_owned();
-        let product_id = format!("0x{:04x}", device.product_id());
-        let caps = capabilities(device);
-        let features = device.capabilities();
-        let mut errors = Vec::new();
-        let mut battery = None;
-        let mut mix = None;
-        match device {
-            Device::Headset(headset) => {
-                if features.contains(Capabilities::BATTERY_STATUS) {
-                    match headset.get_battery() {
-                        Ok(value) => battery = Some(battery_json(&id, &model, value)),
-                        Err(e) => {
-                            failures += 1;
-                            errors.push(e.to_string());
-                            if !json {
-                                error_line(&format!("{id}: {e}"));
-                            }
-                        }
-                    }
-                }
-                if features.contains(Capabilities::CHATMIX) {
-                    match headset.get_chatmix() {
-                        Ok(value) => {
-                            mix = Some(ChatMixJson {
-                                id: id.clone(),
-                                model: model.clone(),
-                                level: Some(value.level),
-                                game_volume_percentage: Some(value.game_volume_percentage),
-                                chat_volume_percentage: Some(value.chat_volume_percentage),
-                                error: None,
-                            })
-                        }
-                        Err(e) => {
-                            failures += 1;
-                            errors.push(e.to_string());
-                            if !json {
-                                error_line(&format!("{id}: {e}"));
-                            }
-                        }
-                    }
-                }
+    let reads = parallel_map(devices, read_status);
+    let failures = reads.iter().map(|read| read.errors.len()).sum::<usize>();
+    if !json {
+        for read in &reads {
+            for error in &read.errors {
+                error_line(&format!("{}: {error}", read.status.id));
             }
-            Device::Mouse(mouse) if features.contains(Capabilities::BATTERY_STATUS) => {
-                match mouse.get_battery() {
-                    Ok(value) => battery = Some(battery_json(&id, &model, value)),
-                    Err(e) => {
-                        failures += 1;
-                        errors.push(e.to_string());
-                        if !json {
-                            error_line(&format!("{id}: {e}"));
-                        }
-                    }
-                }
-            }
-            _ => {}
         }
-        statuses.push(StatusJson {
-            id,
-            model,
-            product_id,
-            capabilities: caps,
-            battery,
-            chat_mix: mix,
-            error: (!errors.is_empty()).then(|| errors.join("; ")),
-        });
     }
+    let statuses: Vec<_> = reads.into_iter().map(|read| read.status).collect();
     if json {
         write_json(&statuses);
     } else {
@@ -338,35 +290,82 @@ fn run_status(selector: Option<&str>, json: bool) -> i32 {
     i32::from(failures != 0)
 }
 
-fn run_all_battery(json: bool) -> i32 {
-    let Ok(mut devices) = discover(json) else {
+fn read_status(mut device: Device) -> StatusRead {
+    let id = device.id().to_owned();
+    let model = device.name().to_owned();
+    let product_id = format!("0x{:04x}", device.product_id());
+    let caps = capabilities(&device);
+    let features = device.capabilities();
+    let mut errors = Vec::new();
+    let mut battery = None;
+    let mut mix = None;
+    match &mut device {
+        Device::Headset(headset) => {
+            if features.intersects(Capabilities::BATTERY_STATUS | Capabilities::CHATMIX) {
+                match headset.get_status() {
+                    Ok(value) => {
+                        battery = value
+                            .battery
+                            .map(|battery| battery_json(&id, &model, battery));
+                        mix = value.chatmix.map(|value| ChatMixJson {
+                            id: id.clone(),
+                            model: model.clone(),
+                            level: Some(value.level),
+                            game_volume_percentage: Some(value.game_volume_percentage),
+                            chat_volume_percentage: Some(value.chat_volume_percentage),
+                            error: None,
+                        });
+                    }
+                    Err(error) => errors.push(error.to_string()),
+                }
+            }
+        }
+        Device::Mouse(mouse) if features.contains(Capabilities::BATTERY_STATUS) => {
+            match mouse.get_battery() {
+                Ok(value) => battery = Some(battery_json(&id, &model, value)),
+                Err(error) => errors.push(error.to_string()),
+            }
+        }
+        _ => {}
+    }
+    StatusRead {
+        status: StatusJson {
+            id,
+            model,
+            product_id,
+            capabilities: caps,
+            battery,
+            chat_mix: mix,
+            error: (!errors.is_empty()).then(|| errors.join("; ")),
+        },
+        errors,
+    }
+}
+
+fn run_all_battery(json: bool, discovery: DiscoveryOptions) -> i32 {
+    let Ok(devices) = discover(json, discovery) else {
         return 1;
     };
     let mut rows = Vec::new();
     let mut failed = false;
-    for device in &mut devices {
-        if !device.capabilities().contains(Capabilities::BATTERY_STATUS) {
-            continue;
-        }
-        let id = device.id().to_owned();
-        let model = device.name().to_owned();
-        let result = match device {
-            Device::Headset(value) => value.get_battery(),
-            Device::Mouse(value) => value.get_battery(),
-        };
-        match result {
-            Ok(value) => rows.push(battery_json(&id, &model, value)),
+    let devices = devices
+        .into_iter()
+        .filter(|device| device.capabilities().contains(Capabilities::BATTERY_STATUS))
+        .collect();
+    for read in parallel_map(devices, read_battery) {
+        match read.result {
+            Ok(value) => rows.push(battery_json(&read.id, &read.model, value)),
             Err(error) => {
                 failed = true;
                 rows.push(BatteryJson {
-                    id: id.clone(),
-                    model,
+                    id: read.id.clone(),
+                    model: read.model,
                     level_percentage: None,
                     charging_state: None,
                     error: Some(error.to_string()),
                 });
                 if !json {
-                    error_line(&format!("{id}: {error}"));
+                    error_line(&format!("{}: {error}", read.id));
                 }
             }
         }
@@ -385,27 +384,42 @@ fn run_all_battery(json: bool) -> i32 {
     i32::from(failed || rows.is_empty())
 }
 
-fn headset(command: HeadsetCommand) -> i32 {
+fn read_battery(mut device: Device) -> BatteryRead {
+    let id = device.id().to_owned();
+    let model = device.name().to_owned();
+    let result = match &mut device {
+        Device::Headset(value) => value.get_battery(),
+        Device::Mouse(value) => value.get_battery(),
+    };
+    BatteryRead { id, model, result }
+}
+
+fn headset(command: HeadsetCommand, discovery: DiscoveryOptions) -> i32 {
     match command {
         HeadsetCommand::Battery(args) => headset_read(
             args.device.device.as_deref(),
             args.json,
             Capabilities::BATTERY_STATUS,
             |device| device.get_battery().map(ReadValue::Battery),
+            discovery,
         ),
         HeadsetCommand::Chatmix(args) => headset_read(
             args.device.device.as_deref(),
             args.json,
             Capabilities::CHATMIX,
             |device| device.get_chatmix().map(ReadValue::Chatmix),
+            discovery,
         ),
         HeadsetCommand::Sidetone { level, device } => {
             if !(0..=128).contains(&level) {
                 return validation("Sidetone must be between 0 and 128.");
             }
-            headset_set(device.device.as_deref(), Capabilities::SIDETONE, |value| {
-                value.set_sidetone(level as u8)
-            })
+            headset_set(
+                device.device.as_deref(),
+                Capabilities::SIDETONE,
+                |value| value.set_sidetone(level as u8),
+                discovery,
+            )
         }
         HeadsetCommand::InactiveTime { minutes, device } => {
             if !(0..=90).contains(&minutes) {
@@ -415,6 +429,7 @@ fn headset(command: HeadsetCommand) -> i32 {
                 device.device.as_deref(),
                 Capabilities::INACTIVE_TIME,
                 |value| value.set_inactive_time(minutes as u16),
+                discovery,
             )
         }
         HeadsetCommand::MicrophoneVolume { volume, device } => {
@@ -425,6 +440,7 @@ fn headset(command: HeadsetCommand) -> i32 {
                 device.device.as_deref(),
                 Capabilities::MICROPHONE_VOLUME,
                 |value| value.set_microphone_volume(volume as u8),
+                discovery,
             )
         }
         HeadsetCommand::MicrophoneMuteLed { brightness, device } => {
@@ -435,6 +451,7 @@ fn headset(command: HeadsetCommand) -> i32 {
                 device.device.as_deref(),
                 Capabilities::MICROPHONE_MUTE_LED_BRIGHTNESS,
                 |value| value.set_microphone_mute_led_brightness(brightness as u8),
+                discovery,
             )
         }
         HeadsetCommand::VolumeLimiter { state, device } => {
@@ -445,6 +462,7 @@ fn headset(command: HeadsetCommand) -> i32 {
                 device.device.as_deref(),
                 Capabilities::VOLUME_LIMITER,
                 |value| value.set_volume_limiter(enabled),
+                discovery,
             )
         }
         HeadsetCommand::Bluetooth { command } => match command {
@@ -456,6 +474,7 @@ fn headset(command: HeadsetCommand) -> i32 {
                     device.device.as_deref(),
                     Capabilities::BLUETOOTH_WHEN_POWERED_ON,
                     |value| value.set_bluetooth_when_powered_on(enabled),
+                    discovery,
                 )
             }
             BluetoothCommand::CallVolume { mode, device } => {
@@ -469,10 +488,11 @@ fn headset(command: HeadsetCommand) -> i32 {
                     device.device.as_deref(),
                     Capabilities::BLUETOOTH_CALL_VOLUME,
                     |value| value.set_bluetooth_call_volume(mode),
+                    discovery,
                 )
             }
         },
-        HeadsetCommand::Equalizer { command } => equalizer(command),
+        HeadsetCommand::Equalizer { command } => equalizer(command, discovery),
     }
 }
 
@@ -480,35 +500,46 @@ enum ReadValue {
     Battery(BatteryInfo),
     Chatmix(ChatmixInfo),
 }
+struct HeadsetRead {
+    id: String,
+    model: String,
+    result: openseries::Result<ReadValue>,
+}
 
 fn headset_read(
     selector: Option<&str>,
     json: bool,
     feature: Capabilities,
-    mut operation: impl FnMut(&mut Headset) -> openseries::Result<ReadValue>,
+    operation: impl Fn(&mut Headset) -> openseries::Result<ReadValue> + Sync,
+    discovery: DiscoveryOptions,
 ) -> i32 {
-    let Ok(mut devices) = discover(json) else {
+    let Ok(devices) = discover(json, discovery) else {
         return 1;
     };
     let indexes = selected(&devices, selector, feature, DeviceCategory::Headset, json);
     let mut failed = indexes.is_empty();
     let mut batteries = Vec::new();
     let mut mixes = Vec::new();
-    for index in indexes {
-        let id = devices[index].id().to_owned();
-        let model = devices[index].name().to_owned();
-        let result = devices[index]
+    let devices = take_selected(devices, &indexes);
+    for read in parallel_map(devices, |mut device| {
+        let id = device.id().to_owned();
+        let model = device.name().to_owned();
+        let result = device
             .as_headset_mut()
-            .map(&mut operation)
+            .map(&operation)
             .ok_or_else(|| {
                 openseries::OpenSeriesError::Protocol("internal headset selection mismatch".into())
             })
             .and_then(std::convert::identity);
-        match result {
-            Ok(ReadValue::Battery(value)) => batteries.push(battery_json(&id, &model, value)),
+        HeadsetRead { id, model, result }
+    }) {
+        match read.result {
+            Ok(ReadValue::Battery(value)) => {
+                batteries.push(battery_json(&read.id, &read.model, value))
+            }
             Ok(ReadValue::Chatmix(value)) => mixes.push(ChatMixJson {
-                id: id.clone(),
-                model,
+                id: read.id.clone(),
+                model: read.model,
                 level: Some(value.level),
                 game_volume_percentage: Some(value.game_volume_percentage),
                 chat_volume_percentage: Some(value.chat_volume_percentage),
@@ -519,8 +550,8 @@ fn headset_read(
                 if json {
                     if feature == Capabilities::CHATMIX {
                         mixes.push(ChatMixJson {
-                            id,
-                            model,
+                            id: read.id,
+                            model: read.model,
                             level: None,
                             game_volume_percentage: None,
                             chat_volume_percentage: None,
@@ -528,15 +559,15 @@ fn headset_read(
                         });
                     } else {
                         batteries.push(BatteryJson {
-                            id,
-                            model,
+                            id: read.id,
+                            model: read.model,
                             level_percentage: None,
                             charging_state: None,
                             error: Some(error.to_string()),
                         });
                     }
                 } else {
-                    error_line(&format!("{id}: {error}"));
+                    error_line(&format!("{}: {error}", read.id));
                 }
             }
         }
@@ -573,8 +604,9 @@ fn headset_set(
     selector: Option<&str>,
     feature: Capabilities,
     mut operation: impl FnMut(&mut Headset) -> openseries::Result<()>,
+    discovery: DiscoveryOptions,
 ) -> i32 {
-    let Ok(mut devices) = discover(false) else {
+    let Ok(mut devices) = discover(false, discovery) else {
         return 1;
     };
     let indexes = selected(&devices, selector, feature, DeviceCategory::Headset, false);
@@ -601,7 +633,7 @@ fn headset_set(
     i32::from(failed)
 }
 
-fn equalizer(command: EqualizerCommand) -> i32 {
+fn equalizer(command: EqualizerCommand, discovery: DiscoveryOptions) -> i32 {
     match command {
         EqualizerCommand::Preset { preset, device } => headset_set(
             device.device.as_deref(),
@@ -620,6 +652,7 @@ fn equalizer(command: EqualizerCommand) -> i32 {
                 })?;
                 headset.set_equalizer_preset(index)
             },
+            discovery,
         ),
         EqualizerCommand::Set { bands, device } => {
             let Some(values) = parse_floats(&bands, 10) else {
@@ -632,6 +665,7 @@ fn equalizer(command: EqualizerCommand) -> i32 {
                 device.device.as_deref(),
                 Capabilities::EQUALIZER,
                 |headset| headset.set_equalizer(&values),
+                discovery,
             )
         }
         EqualizerCommand::Parametric { bands, device } => {
@@ -643,15 +677,16 @@ fn equalizer(command: EqualizerCommand) -> i32 {
                 device.device.as_deref(),
                 Capabilities::PARAMETRIC_EQUALIZER,
                 |headset| headset.set_parametric_equalizer(&values),
+                discovery,
             )
         }
     }
 }
 
-fn mouse(command: MouseCommand) -> i32 {
+fn mouse(command: MouseCommand, discovery: DiscoveryOptions) -> i32 {
     match command {
         MouseCommand::Battery(args) => {
-            let Ok(mut devices) = discover(args.json) else {
+            let Ok(devices) = discover(args.json, discovery) else {
                 return 1;
             };
             let indexes = selected(
@@ -663,31 +698,22 @@ fn mouse(command: MouseCommand) -> i32 {
             );
             let mut rows = Vec::new();
             let mut failed = indexes.is_empty();
-            for index in indexes {
-                let id = devices[index].id().to_owned();
-                let model = devices[index].name().to_owned();
-                let result = devices[index]
-                    .as_mouse_mut()
-                    .ok_or_else(|| {
-                        openseries::OpenSeriesError::Protocol(
-                            "internal mouse selection mismatch".into(),
-                        )
-                    })
-                    .and_then(Mouse::get_battery);
-                match result {
-                    Ok(value) => rows.push(battery_json(&id, &model, value)),
+            let devices = take_selected(devices, &indexes);
+            for read in parallel_map(devices, read_battery) {
+                match read.result {
+                    Ok(value) => rows.push(battery_json(&read.id, &read.model, value)),
                     Err(error) => {
                         failed = true;
                         if args.json {
                             rows.push(BatteryJson {
-                                id,
-                                model,
+                                id: read.id,
+                                model: read.model,
                                 level_percentage: None,
                                 charging_state: None,
                                 error: Some(error.to_string()),
                             });
                         } else {
-                            error_line(&format!("{id}: {error}"));
+                            error_line(&format!("{}: {error}", read.id));
                         }
                     }
                 }
@@ -717,6 +743,7 @@ fn mouse(command: MouseCommand) -> i32 {
                 device.device.as_deref(),
                 Capabilities::MOUSE_SENSITIVITY,
                 |mouse| mouse.set_sensitivity(&values),
+                discovery,
             )
         }
         MouseCommand::PollingRate { hz, device } => {
@@ -727,6 +754,7 @@ fn mouse(command: MouseCommand) -> i32 {
                 device.device.as_deref(),
                 Capabilities::POLLING_RATE,
                 |mouse| mouse.set_polling_rate(hz as u16),
+                discovery,
             )
         }
         MouseCommand::Color {
@@ -744,6 +772,7 @@ fn mouse(command: MouseCommand) -> i32 {
                 device.device.as_deref(),
                 Capabilities::ILLUMINATION,
                 |mouse| mouse.set_illumination(zone, color, Persistence::Save),
+                discovery,
             )
         }
         MouseCommand::SleepTimer { minutes, device } => {
@@ -754,6 +783,7 @@ fn mouse(command: MouseCommand) -> i32 {
                 device.device.as_deref(),
                 Capabilities::SLEEP_TIMER,
                 |mouse| mouse.set_sleep_timer(minutes as u8),
+                discovery,
             )
         }
     }
@@ -763,8 +793,9 @@ fn mouse_set(
     selector: Option<&str>,
     feature: Capabilities,
     mut operation: impl FnMut(&mut Mouse) -> openseries::Result<()>,
+    discovery: DiscoveryOptions,
 ) -> i32 {
-    let Ok(mut devices) = discover(false) else {
+    let Ok(mut devices) = discover(false, discovery) else {
         return 1;
     };
     let indexes = selected(&devices, selector, feature, DeviceCategory::Mouse, false);
@@ -789,6 +820,38 @@ fn mouse_set(
         }
     }
     i32::from(failed)
+}
+
+fn parallel_map<T, U>(values: Vec<T>, operation: impl Fn(T) -> U + Sync) -> Vec<U>
+where
+    T: Send,
+    U: Send,
+{
+    if values.len() < 2 {
+        return values.into_iter().map(operation).collect();
+    }
+    std::thread::scope(|scope| {
+        let operation = &operation;
+        let workers: Vec<_> = values
+            .into_iter()
+            .map(|value| scope.spawn(move || operation(value)))
+            .collect();
+        workers
+            .into_iter()
+            .map(|worker| match worker.join() {
+                Ok(value) => value,
+                Err(panic) => std::panic::resume_unwind(panic),
+            })
+            .collect()
+    })
+}
+
+fn take_selected(devices: Vec<Device>, indexes: &[usize]) -> Vec<Device> {
+    devices
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, device)| indexes.binary_search(&index).is_ok().then_some(device))
+        .collect()
 }
 
 #[derive(Clone, Copy)]

@@ -1,12 +1,13 @@
 use crate::commands::{
     discover, error_line, parse_color, parse_floats, parse_parametric, parse_u16s, validation,
 };
+use openseries::DiscoveryOptions;
 use openseries::devices::headsets::{BluetoothCallVolumeMode, Headset};
 use openseries::devices::mice::Mouse;
 use openseries::devices::{Capabilities, Device, Persistence};
 
-pub(crate) fn run() -> i32 {
-    let Ok(mut devices) = discover(false) else {
+pub(crate) fn run(discovery: DiscoveryOptions) -> i32 {
+    let Ok(mut devices) = discover(false, discovery) else {
         return 1;
     };
     if devices.is_empty() {

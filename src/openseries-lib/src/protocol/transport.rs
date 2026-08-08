@@ -7,26 +7,35 @@ use std::sync::Arc;
 pub(crate) struct HidTransport {
     api: Arc<HidApi>,
     path: CString,
+    device: Option<HidDevice>,
     timeout_ms: i32,
     input_length: usize,
     output_length: usize,
     feature_length: usize,
+    output_report: Vec<u8>,
+    feature_report: Vec<u8>,
+    input_report: Vec<u8>,
 }
 
 impl HidTransport {
     pub(crate) fn new(
         api: Arc<HidApi>,
         path: CString,
+        device: Option<HidDevice>,
         timeout_ms: i32,
         sizes: ReportSizes,
     ) -> Self {
         Self {
             api,
             path,
+            device,
             timeout_ms,
             input_length: report_length_or_default(sizes.input),
             output_length: report_length_or_default(sizes.output),
             feature_length: report_length_or_default(sizes.feature),
+            output_report: Vec::new(),
+            feature_report: Vec::new(),
+            input_report: Vec::new(),
         }
     }
 
@@ -37,17 +46,26 @@ impl HidTransport {
         minimum_report_length: usize,
     ) -> Result<()> {
         let length = self.output_length.max(minimum_report_length);
-        let report = create_report(command, command_offset, length, "Output")?;
-        self.execute(|device| {
-            let written = device.write(&report)?;
-            if written != report.len() {
+        prepare_report(
+            &mut self.output_report,
+            command,
+            command_offset,
+            length,
+            "Output",
+        )?;
+        self.ensure_device()?;
+        let result = (|| {
+            let device = self.device.as_ref().expect("HID device must be open");
+            let written = device.write(&self.output_report)?;
+            if written != self.output_report.len() {
                 return Err(HidError::IncompleteSendError {
                     sent: written,
-                    all: report.len(),
+                    all: self.output_report.len(),
                 });
             }
             Ok(())
-        })
+        })();
+        self.finish_operation(result)
     }
 
     pub(crate) fn write_feature(
@@ -57,8 +75,20 @@ impl HidTransport {
         minimum_report_length: usize,
     ) -> Result<()> {
         let length = self.feature_length.max(minimum_report_length);
-        let report = create_report(command, command_offset, length, "Feature")?;
-        self.execute(|device| device.send_feature_report(&report))
+        prepare_report(
+            &mut self.feature_report,
+            command,
+            command_offset,
+            length,
+            "Feature",
+        )?;
+        self.ensure_device()?;
+        let result = self
+            .device
+            .as_ref()
+            .expect("HID device must be open")
+            .send_feature_report(&self.feature_report);
+        self.finish_operation(result)
     }
 
     pub(crate) fn write_output_and_read(
@@ -70,38 +100,55 @@ impl HidTransport {
         normalize: Option<u8>,
     ) -> Result<Vec<u8>> {
         let length = self.output_length.max(minimum_report_length);
-        let report = create_report(command, command_offset, length, "Output")?;
-        let timeout = self.timeout_ms;
-        let input_length = self.input_length;
-        self.execute(move |device| {
-            let written = device.write(&report)?;
-            if written != report.len() {
+        prepare_report(
+            &mut self.output_report,
+            command,
+            command_offset,
+            length,
+            "Output",
+        )?;
+        self.input_report
+            .resize(response_buffer_length.max(self.input_length), 0);
+        self.ensure_device()?;
+        let result = (|| {
+            let device = self.device.as_ref().expect("HID device must be open");
+            let written = device.write(&self.output_report)?;
+            if written != self.output_report.len() {
                 return Err(HidError::IncompleteSendError {
                     sent: written,
-                    all: report.len(),
+                    all: self.output_report.len(),
                 });
             }
-            let mut response = vec![0_u8; response_buffer_length.max(input_length)];
-            let read = device.read_timeout(&mut response, timeout)?;
+            let read = device.read_timeout(&mut self.input_report, self.timeout_ms)?;
             if read == 0 {
                 return Err(HidError::IoError {
                     error: std::io::Error::new(ErrorKind::TimedOut, "HID read timed out"),
                 });
             }
-            response.truncate(read);
-            normalize_response(&mut response, normalize);
-            Ok(response)
-        })
+            let response = &self.input_report[..read];
+            let start = normalized_response_start(response, normalize);
+            Ok(response[start..].to_vec())
+        })();
+        self.finish_operation(result)
     }
 
-    fn execute<T>(
-        &mut self,
-        operation: impl FnOnce(&HidDevice) -> hidapi::HidResult<T>,
-    ) -> Result<T> {
-        let device = self.api.open_path(&self.path).map_err(map_hid_error)?;
-        match operation(&device) {
+    fn ensure_device(&mut self) -> Result<()> {
+        if self.device.is_none() {
+            self.device = Some(self.api.open_path(&self.path).map_err(map_hid_error)?);
+        }
+        Ok(())
+    }
+
+    fn finish_operation<T>(&mut self, result: hidapi::HidResult<T>) -> Result<T> {
+        match result {
             Ok(value) => Ok(value),
-            Err(error) => Err(map_hid_error(error)),
+            Err(error) => {
+                let error = map_hid_error(error);
+                if matches!(error, OpenSeriesError::Disconnected) {
+                    self.device = None;
+                }
+                Err(error)
+            }
         }
     }
 }
@@ -110,12 +157,11 @@ fn report_length_or_default(length: usize) -> usize {
     if length == 0 { 64 } else { length }
 }
 
-fn normalize_response(response: &mut Vec<u8>, expected_command: Option<u8>) {
-    if expected_command
-        .is_some_and(|id| response.len() >= 2 && response[0] == 0 && response[1] == id)
-    {
-        response.remove(0);
-    }
+fn normalized_response_start(response: &[u8], expected_command: Option<u8>) -> usize {
+    usize::from(
+        expected_command
+            .is_some_and(|id| response.len() >= 2 && response[0] == 0 && response[1] == id),
+    )
 }
 
 #[derive(Clone, Copy, Default)]
@@ -207,15 +253,22 @@ pub(crate) fn report_sizes(descriptor: &[u8]) -> ReportSizes {
     }
 }
 
-fn create_report(command: &[u8], offset: usize, length: usize, kind: &str) -> Result<Vec<u8>> {
+fn prepare_report(
+    report: &mut Vec<u8>,
+    command: &[u8],
+    offset: usize,
+    length: usize,
+    kind: &str,
+) -> Result<()> {
     if command.len().saturating_add(offset) > length {
         return Err(OpenSeriesError::Protocol(format!(
             "{kind} report length {length} cannot carry this command."
         )));
     }
-    let mut report = vec![0; length];
+    report.resize(length, 0);
+    report.fill(0);
     report[offset..offset + command.len()].copy_from_slice(command);
-    Ok(report)
+    Ok(())
 }
 
 pub(crate) fn map_hid_error(error: HidError) -> OpenSeriesError {
@@ -244,5 +297,37 @@ pub(crate) fn map_hid_error(error: HidError) -> OpenSeriesError {
         OpenSeriesError::Disconnected
     } else {
         OpenSeriesError::Hid(error)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prepare_report_reuses_and_clears_the_buffer() {
+        let mut report = vec![0xff; 8];
+
+        prepare_report(&mut report, &[0x10, 0x20], 1, 4, "Output").unwrap();
+        assert_eq!(report, [0, 0x10, 0x20, 0]);
+
+        prepare_report(&mut report, &[0x30], 2, 6, "Output").unwrap();
+        assert_eq!(report, [0, 0, 0x30, 0, 0, 0]);
+    }
+
+    #[test]
+    fn prepare_report_rejects_an_oversized_command() {
+        let mut report = Vec::new();
+        let error = prepare_report(&mut report, &[1, 2, 3], 2, 4, "Feature").unwrap_err();
+
+        assert!(matches!(error, OpenSeriesError::Protocol(_)));
+        assert!(report.is_empty());
+    }
+
+    #[test]
+    fn response_normalization_uses_a_slice_offset() {
+        assert_eq!(normalized_response_start(&[0, 0xb0, 1], Some(0xb0)), 1);
+        assert_eq!(normalized_response_start(&[0xb0, 1], Some(0xb0)), 0);
+        assert_eq!(normalized_response_start(&[0, 0xb0, 1], None), 0);
     }
 }

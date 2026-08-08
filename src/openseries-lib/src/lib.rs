@@ -2,7 +2,7 @@ mod device_manager;
 pub mod devices;
 mod protocol;
 
-pub use device_manager::discover_devices;
+pub use device_manager::{DiscoveryOptions, discover_devices, discover_devices_with_options};
 
 use thiserror::Error;
 

@@ -21,6 +21,34 @@ impl Nova7 {
             base: DeviceContext::new(identity, transport),
         }
     }
+
+    fn battery_from_status(&self, data: &[u8]) -> BatteryInfo {
+        if data[3] == 0 {
+            return BatteryInfo {
+                level_percentage: 0,
+                status: BatteryStatus::Disconnected,
+            };
+        }
+        let discrete =
+            [0x2202, 0x2206, 0x223a, 0x227a, 0x22a4].contains(&self.base.identity.product_id);
+        let level = if discrete {
+            map(i32::from(data[2]), 0, 4, 0, 100)
+        } else {
+            i32::from(data[2])
+        }
+        .clamp(0, 100) as u16;
+        let status = if matches!(data[3], 1 | 2) {
+            BatteryStatus::Charging
+        } else if level == 100 {
+            BatteryStatus::Charged
+        } else {
+            BatteryStatus::Discharging
+        };
+        BatteryInfo {
+            level_percentage: level,
+            status,
+        }
+    }
 }
 impl DeviceProtocol for Nova7 {
     fn id(&self) -> &str {
@@ -60,35 +88,18 @@ impl HeadsetProtocol for Nova7 {
     }
     fn get_battery(&mut self) -> Result<BatteryInfo> {
         let data = status(&mut self.base.transport, 6)?;
-        if data[3] == 0 {
-            return Ok(BatteryInfo {
-                level_percentage: 0,
-                status: BatteryStatus::Disconnected,
-            });
-        }
-        let discrete =
-            [0x2202, 0x2206, 0x223a, 0x227a, 0x22a4].contains(&self.base.identity.product_id);
-        let level = if discrete {
-            map(i32::from(data[2]), 0, 4, 0, 100)
-        } else {
-            i32::from(data[2])
-        }
-        .clamp(0, 100) as u16;
-        let state = if matches!(data[3], 1 | 2) {
-            BatteryStatus::Charging
-        } else if level == 100 {
-            BatteryStatus::Charged
-        } else {
-            BatteryStatus::Discharging
-        };
-        Ok(BatteryInfo {
-            level_percentage: level,
-            status: state,
-        })
+        Ok(self.battery_from_status(&data))
     }
     fn get_chatmix(&mut self) -> Result<ChatmixInfo> {
         let data = status(&mut self.base.transport, 6)?;
         Ok(chatmix(&data, 4, 5))
+    }
+    fn get_status(&mut self) -> Result<HeadsetStatus> {
+        let data = status(&mut self.base.transport, 6)?;
+        Ok(HeadsetStatus {
+            battery: Some(self.battery_from_status(&data)),
+            chatmix: Some(chatmix(&data, 4, 5)),
+        })
     }
     fn set_sidetone(&mut self, level: u8) -> Result<()> {
         if level > 128 {

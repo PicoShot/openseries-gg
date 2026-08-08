@@ -47,6 +47,26 @@ impl Nova5 {
         self.base.transport.write_output(&[0, 0x09], 0, 64)?;
         self.base.transport.write_output(&[0, 0x35, 1], 0, 64)
     }
+    fn battery_from_status(data: &[u8]) -> BatteryInfo {
+        if data[1] == 2 {
+            return BatteryInfo {
+                level_percentage: 0,
+                status: BatteryStatus::Disconnected,
+            };
+        }
+        let level = u16::from(data[3]).min(100);
+        let status = if data[4] == 1 {
+            BatteryStatus::Charging
+        } else if level == 100 {
+            BatteryStatus::Charged
+        } else {
+            BatteryStatus::Discharging
+        };
+        BatteryInfo {
+            level_percentage: level,
+            status,
+        }
+    }
     fn write_parametric(
         command: &mut [u8; 64],
         index: usize,
@@ -94,28 +114,18 @@ impl HeadsetProtocol for Nova5 {
     }
     fn get_battery(&mut self) -> Result<BatteryInfo> {
         let data = status(&mut self.base.transport, 16)?;
-        if data[1] == 2 {
-            return Ok(BatteryInfo {
-                level_percentage: 0,
-                status: BatteryStatus::Disconnected,
-            });
-        }
-        let level = u16::from(data[3]).min(100);
-        let state = if data[4] == 1 {
-            BatteryStatus::Charging
-        } else if level == 100 {
-            BatteryStatus::Charged
-        } else {
-            BatteryStatus::Discharging
-        };
-        Ok(BatteryInfo {
-            level_percentage: level,
-            status: state,
-        })
+        Ok(Self::battery_from_status(&data))
     }
     fn get_chatmix(&mut self) -> Result<ChatmixInfo> {
         let data = status(&mut self.base.transport, 7)?;
         Ok(chatmix(&data, 5, 6))
+    }
+    fn get_status(&mut self) -> Result<HeadsetStatus> {
+        let data = status(&mut self.base.transport, 16)?;
+        Ok(HeadsetStatus {
+            battery: Some(Self::battery_from_status(&data)),
+            chatmix: Some(chatmix(&data, 5, 6)),
+        })
     }
     fn set_sidetone(&mut self, level: u8) -> Result<()> {
         if level > 128 {

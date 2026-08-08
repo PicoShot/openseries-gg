@@ -72,6 +72,8 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 openseries devices list
 openseries status
 openseries battery
+# Override the default 2000 ms device-response timeout
+openseries status --timeout-ms 500
 
 # Headsets
 openseries headset battery
@@ -129,3 +131,8 @@ fn main() -> openseries::Result<()> {
 
 See [examples](examples/) for complete
 programs built on the library.
+
+`discover_devices` keeps each successfully opened HID connection alive for the
+lifetime of its returned `Device`. Use `discover_devices_with_options` and
+`DiscoveryOptions::with_timeout` when an application needs a response timeout
+other than the two-second default.

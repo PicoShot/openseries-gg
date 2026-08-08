@@ -10,7 +10,8 @@ pub(crate) mod mouse_models;
 pub mod headsets {
     pub use super::{
         BatteryInfo, BatteryStatus, BluetoothCallVolumeMode, ChatmixInfo, EqualizerFilterType,
-        EqualizerInfo, EqualizerPreset, Headset, ParametricEqualizerBand, ParametricEqualizerInfo,
+        EqualizerInfo, EqualizerPreset, Headset, HeadsetStatus, ParametricEqualizerBand,
+        ParametricEqualizerInfo,
     };
 }
 
@@ -99,6 +100,13 @@ pub struct ChatmixInfo {
     pub level: u16,
     pub game_volume_percentage: u16,
     pub chat_volume_percentage: u16,
+}
+
+/// A single headset status response decoded into its supported values.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HeadsetStatus {
+    pub battery: Option<BatteryInfo>,
+    pub chatmix: Option<ChatmixInfo>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -226,6 +234,21 @@ pub(crate) trait HeadsetProtocol: DeviceProtocol {
     fn get_chatmix(&mut self) -> Result<ChatmixInfo> {
         Err(unsupported(self, "ChatMix"))
     }
+    fn get_status(&mut self) -> Result<HeadsetStatus> {
+        let features = self.supported_features();
+        Ok(HeadsetStatus {
+            battery: if features.contains(Capabilities::BATTERY_STATUS) {
+                Some(self.get_battery()?)
+            } else {
+                None
+            },
+            chatmix: if features.contains(Capabilities::CHATMIX) {
+                Some(self.get_chatmix()?)
+            } else {
+                None
+            },
+        })
+    }
     fn set_sidetone(&mut self, _level: u8) -> Result<()> {
         Err(unsupported(self, "sidetone control"))
     }
@@ -337,6 +360,9 @@ impl Headset {
     }
     pub fn get_chatmix(&mut self) -> Result<ChatmixInfo> {
         self.inner.get_chatmix()
+    }
+    pub fn get_status(&mut self) -> Result<HeadsetStatus> {
+        self.inner.get_status()
     }
     pub fn set_sidetone(&mut self, level: u8) -> Result<()> {
         self.inner.set_sidetone(level)
