@@ -121,7 +121,7 @@ Add the package without its default CLI dependencies:
 
 ```toml
 [dependencies]
-openseries-gg = { version = "1.0.0", default-features = false }
+openseries-gg = { version = "1", default-features = false }
 ```
 
 The package exposes its library under the crate name `openseries`:
@@ -147,10 +147,4 @@ fn main() -> openseries::Result<()> {
 }
 ```
 
-See [examples](examples/) for complete
-programs built on the library.
-
-`discover_devices` keeps each successfully opened HID connection alive for the
-lifetime of its returned `Device`. Use `discover_devices_with_options` and
-`DiscoveryOptions::with_timeout` when an application needs a response timeout
-other than the two-second default.
+See [examples](examples/) for complete programs built on the library.
