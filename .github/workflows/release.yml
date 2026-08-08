@@ -69,7 +69,7 @@ jobs:
         run: rustup target add ${{ matrix.target }}
 
       - name: Build
-        run: cargo build --release --locked --package openseries-cli --target ${{ matrix.target }}
+        run: cargo build --release --locked --package openseries-gg --target ${{ matrix.target }}
 
       - name: Stage artifact
         shell: bash

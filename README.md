@@ -48,6 +48,18 @@ verified against the exact model rather than inferred from a related device.
 - Permission to access its HID control interface
 - On Linux, the development files for `libudev`
 
+## Installation
+
+Install the `openseries` executable from crates.io:
+
+```bash
+cargo install openseries-gg --locked
+```
+
+Linux users must install their distribution's `libudev` development package
+before running `cargo install` (for example, `libudev-dev` on Debian and
+Ubuntu).
+
 ## Build
 
 ```bash
@@ -105,8 +117,14 @@ device. Use `--device <id>` to target one device.
 
 ## Library usage
 
-The `openseries` library crate contains discovery and protocol logic without
-CLI or terminal dependencies:
+Add the package without its default CLI dependencies:
+
+```toml
+[dependencies]
+openseries-gg = { version = "1.0.0", default-features = false }
+```
+
+The package exposes its library under the crate name `openseries`:
 
 ```rust
 use openseries::devices::{Capabilities, Device};

@@ -103,7 +103,7 @@ name = "chatmix-bar"
 version = "1.0.0"
 dependencies = [
  "ctrlc",
- "openseries-lib",
+ "openseries-gg",
 ]
 
 [[package]]
@@ -418,7 +418,7 @@ name = "mouse-police-lights"
 version = "1.0.0"
 dependencies = [
  "ctrlc",
- "openseries-lib",
+ "openseries-gg",
 ]
 
 [[package]]
@@ -455,25 +455,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
-name = "openseries-cli"
+name = "openseries-gg"
 version = "1.0.0"
 dependencies = [
  "anstream",
  "anstyle",
+ "bitflags",
  "clap",
  "comfy-table",
+ "hidapi",
  "inquire",
- "openseries-lib",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "openseries-lib"
-version = "1.0.0"
-dependencies = [
- "bitflags",
- "hidapi",
  "sha2",
  "thiserror",
 ]
