@@ -1,4 +1,4 @@
-name: Check
+name: Lint
 
 on:
   push:
@@ -9,21 +9,16 @@ permissions:
   contents: read
 
 jobs:
-  check:
-    name: Check (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+  lint:
+    name: Format and Clippy
+    runs-on: ubuntu-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
 
       - name: Install Linux HID development files
-        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install --yes libudev-dev
 
       - name: Install pinned Rust toolchain
@@ -32,5 +27,8 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Check release
-        run: cargo check --workspace --release --locked
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Lint
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
